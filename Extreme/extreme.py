@@ -12,19 +12,50 @@ def tanh(x):
 def sign(x):
     return (np.sign(x - 0.5) + 1) / 2
 
-class ExtremeLearningMachine(object):
-    def __init__(self, activation=sigmoid,
+class MLELMClassifier(object):
+    """
+    Multi-Layer Extreme Learning Machine
+
+    
+    """
+    
+    def __init__(self, activation=sigmoid, n_hidden=[]):
+        print "__init__"
+
+    def pre_train(self, input):
+        print "pre_train"
+
+        
+    def get_extraction(self, input):
+        print "get_extractation"
+        self.n_input = len(input[0])
+
+        
+    def fit(self, input, teacher):
+        print "fit"
+        
+
+class ELMClassifier(object):
+    """
+    Extreme Learning Machine
+    
+    
+    """
+
+    def __init__(self, activation=sigmoid, vector='orthogonal'
                  n_hidden=50, seed=123, domain=[-1., 1.]):
         # initialize
         self.activation = activation
+        self.vector = vector
         self.n_hidden = n_hidden
         self.np_rng = np.random.RandomState(seed)
         self.domain = domain
         
-    def construct(self, input, teacher):
+    def construct(self, input, teacher, c=0):
         # construct Layer
         self.input = input
         self.teacher = teacher
+        self.c = c
         classes = []
         for t in teacher:
             if not t in classes:
@@ -32,10 +63,34 @@ class ExtremeLearningMachine(object):
         self.classes = classes
         self.n_input = len(input[0])
         self.n_output = len(self.classes)
+        low, high = self.domain
+        
+        if vector == 'orthogonal':
+            # orthogonaly set weight and bias
+            # you should code (orthogonaly, regularization)
+            print "set weight and bias orthogonaly"
+            self.weight = np.zeros([self.n_input, self.n_hidden])
+            self.bias = np.zeros(self.n_hidden)
+            
+        elif vector == 'random':
+            # randomly set weight and bias
+            print "set weight and bias randomly"
+            self.weight = self.np_rng.uniform(low = low, high = high, size = (self.n_input, self.n_hidden))
+            self.bias = self.np_rng.uniform(low = low, high = high, size = self.n_hidden)
+            # regularization
+            # you should code (regularization)
+            
+        else:
+            # set weight and bias to zero
+            print "set weight and bias zero"
+            self.weight = np.zeros([self.n_input, self.n_hidden])
+            self.bias = np.zeros(n_hidden)
+
         self.layer = Layer(self.activation,
-                           self.np_rng,
                            [self.n_input, self.n_hidden, self.n_output],
-                           self.domain)
+                           self.c,
+                           self.weight,
+                           self.bias)
 
         
     def fit(self, input, teacher):
@@ -76,24 +131,19 @@ class ExtremeLearningMachine(object):
         return count * 1.0 / length
 
 class Layer(object):
-    def __init__(self, activation, np_rng, size, domain):
+    def __init__(self, activation, size, c=0, w, b):
         # initialize 
         self.activation = activation
-        self.np_rng = np_rng
         self.n_input, self.n_hidden, self.n_output = size
-        self.low, self.high = domain
-
-        # initialize weight and bias
-        self.w = np.array(self.np_rng.uniform(low = self.low,
-                                              high = self.high,
-                                              size = (self.n_input,
-                                                      self.n_hidden)))
-        self.b = np.array(self.np_rng.uniform(low = self.low,
-                                              high = self.high,
-                                              size = self.n_hidden))
+        self.c = c
+        self.w = w
+        self.b = b
         self.beta = np.zeros([self.n_hidden,
                               self.n_output])
 
+    def get_beta(self):
+        return self.beta
+        
     def get_i2h(self, input):
         return self.activation(np.dot(self.w.T, input) + self.b)
 
@@ -115,9 +165,12 @@ class Layer(object):
             H.append(self.get_i2h(i))
         #print "H", H
         H = np.matrix(H)
-        Hp = H.I
+        if self.c == 0:
+            Hp = (H * H).I * H
+        else:
+            Hp = (np.matrix(np.identity(self.n_output) / (self.c * 1.) + H * H)).I * H
         Hp = np.array(Hp)
-
+        
         self.beta = np.dot(Hp, np.array(signal))
 
         """
@@ -138,7 +191,7 @@ if __name__ == "__main__":
     label = [1, 1, -1, -1]
     test = [[3, 3], [-3, -3]]
 
-    model = ExtremeLearningMachine()
+    model = ELMClassifier()
     model.fit(train, label)
     pre = model.predict(test)
     print pre

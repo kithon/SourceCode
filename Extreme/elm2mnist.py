@@ -1,7 +1,7 @@
 # coding: utf-8
 import gzip
 import cPickle
-from extreme import ExtremeLearningMachine
+from extreme import ELMClassifier
 
 def load_mnist():
     f = gzip.open('../Dataset/mnist.pkl.gz', 'rb')
@@ -28,7 +28,7 @@ def mnist_elm(n_hidden=50, domain=[-1., 1.]):
     test_data, test_target = test_data[:test_size], test_target[:test_size]
 
     # model
-    model = ExtremeLearningMachine(n_hidden = n_hidden, domain = domain)
+    model = ELMClassifier(n_hidden = n_hidden, domain = domain)
 
     # fit
     #print "fitting ..."
