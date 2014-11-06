@@ -52,7 +52,7 @@ class ELMClassifier(object):
         self.domain = domain
         
     def construct(self, input, teacher, c=0.2):
-        # construct Layer
+        # set parameter of layer
         self.input = input
         self.teacher = teacher
         self.c = c
@@ -86,6 +86,7 @@ class ELMClassifier(object):
             self.weight = np.zeros([self.n_input, self.n_hidden])
             self.bias = np.zeros(self.n_hidden)
 
+        # initialize layer
         self.layer = Layer(self.activation,
                            [self.n_input, self.n_hidden, self.n_output],
                            self.weight,
@@ -103,17 +104,18 @@ class ELMClassifier(object):
         for t in teacher:
             signal.append(id_matrix[self.classes.index(t)])
 
-        # fitting
+        # fit layer
         self.layer.fit(input, signal)
         
     def predict(self, input):
-        # return output
+        # get predict_output
         predict_output = []
         for i in input:
             o = self.layer.get_output(i).tolist()
             predict_output.append(self.layer.get_output(i).tolist())
-        print "outputs", predict_output
+        #print "outputs", predict_output
 
+        # get predict_classes from index of max_function(predict_output) 
         predict_classes = []
         for o in predict_output:
             predict_classes.append(self.classes[o.index(max(o))])
@@ -122,7 +124,7 @@ class ELMClassifier(object):
         return predict_classes
 
     def score(self, input, teacher):
-        # return score
+        # get score 
         count = 0
         length = len(teacher)
         predict_classes = self.predict(input)
@@ -154,25 +156,24 @@ class Layer(object):
         return self.beta
         
     def get_i2h(self, input):
+        # activation from input to hidden
         return self.activation(np.dot(self.w.T, input) + self.b)
 
     def get_h2o(self, hidden):
+        # activation from hidden to output
         return np.dot(self.beta.T, hidden)
 
     def get_output(self, input):
-        #print "input", input
+        # activation from input to output
         hidden = self.get_i2h(input)
-        #print "hidden", hidden
         output = self.get_h2o(hidden)
-        #print "output", output
         return output
     
     def fit(self, input, signal):
-        # fitting
+        # set self.beta from activation
         H = []
         for i in input:
             H.append(self.get_i2h(i))
-        #print "H", H
         H = np.matrix(H)
         if self.c == 0:
             Hp = H.T * (H * H.T).I
@@ -180,21 +181,8 @@ class Layer(object):
             id_matrix = np.matrix(np.identity(len(input)))
             Hp = H.T * ((id_matrix / (self.c * 1.)) + H * H.T).I            
         Hp = np.array(Hp)
-        
         self.beta = np.dot(Hp, np.array(signal))
 
-        """
-        # print parameter
-        
-        print "input", input
-        print "w", self.w.T
-        print "b", self.b
-        print "beta", self.beta
-        for i in input:
-            print self.get_output(i)
-
-        """
-            
 
 if __name__ == "__main__":
     train = [[1, 1], [2, 2], [-1, -1], [-2, -2]]
