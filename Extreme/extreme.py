@@ -42,7 +42,7 @@ class ELMClassifier(object):
     
     """
 
-    def __init__(self, activation=sigmoid, vector='orthogonal'
+    def __init__(self, activation=sigmoid, vector='random',
                  n_hidden=50, seed=123, domain=[-1., 1.]):
         # initialize
         self.activation = activation
@@ -51,7 +51,7 @@ class ELMClassifier(object):
         self.np_rng = np.random.RandomState(seed)
         self.domain = domain
         
-    def construct(self, input, teacher, c=0):
+    def construct(self, input, teacher, c=0.2):
         # construct Layer
         self.input = input
         self.teacher = teacher
@@ -65,14 +65,14 @@ class ELMClassifier(object):
         self.n_output = len(self.classes)
         low, high = self.domain
         
-        if vector == 'orthogonal':
+        if self.vector == 'orthogonal':
             # orthogonaly set weight and bias
             # you should code (orthogonaly, regularization)
             print "set weight and bias orthogonaly"
             self.weight = np.zeros([self.n_input, self.n_hidden])
             self.bias = np.zeros(self.n_hidden)
             
-        elif vector == 'random':
+        elif self.vector == 'random':
             # randomly set weight and bias
             print "set weight and bias randomly"
             self.weight = self.np_rng.uniform(low = low, high = high, size = (self.n_input, self.n_hidden))
@@ -84,13 +84,13 @@ class ELMClassifier(object):
             # set weight and bias to zero
             print "set weight and bias zero"
             self.weight = np.zeros([self.n_input, self.n_hidden])
-            self.bias = np.zeros(n_hidden)
+            self.bias = np.zeros(self.n_hidden)
 
         self.layer = Layer(self.activation,
                            [self.n_input, self.n_hidden, self.n_output],
-                           self.c,
                            self.weight,
-                           self.bias)
+                           self.bias,
+                           self.c)
 
         
     def fit(self, input, teacher):
@@ -112,7 +112,7 @@ class ELMClassifier(object):
         for i in input:
             o = self.layer.get_output(i).tolist()
             predict_output.append(self.layer.get_output(i).tolist())
-        #print "outputs", output
+        print "outputs", predict_output
 
         predict_classes = []
         for o in predict_output:
@@ -130,8 +130,17 @@ class ELMClassifier(object):
             if predict_classes[i] == teacher[i]: count += 1
         return count * 1.0 / length
 
+    def get_weight(self):
+        return self.weight
+
+    def get_bias(self):
+        return self.bias
+
+    def get_beta(self):
+        return self.layer.beta
+
 class Layer(object):
-    def __init__(self, activation, size, c=0, w, b):
+    def __init__(self, activation, size, w, b, c):
         # initialize 
         self.activation = activation
         self.n_input, self.n_hidden, self.n_output = size
@@ -166,9 +175,10 @@ class Layer(object):
         #print "H", H
         H = np.matrix(H)
         if self.c == 0:
-            Hp = (H * H).I * H
+            Hp = H.T * (H * H.T).I
         else:
-            Hp = (np.matrix(np.identity(self.n_output) / (self.c * 1.) + H * H)).I * H
+            id_matrix = np.matrix(np.identity(len(input)))
+            Hp = H.T * ((id_matrix / (self.c * 1.)) + H * H.T).I            
         Hp = np.array(Hp)
         
         self.beta = np.dot(Hp, np.array(signal))
