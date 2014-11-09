@@ -42,20 +42,21 @@ class ELMClassifier(object):
     
     """
 
-    def __init__(self, activation=sigmoid, vector='random',
-                 n_hidden=50, seed=123, domain=[-1., 1.]):
+    def __init__(self, activation=sigmoid, vector='orthogonal', regular=True,
+                 c=0., n_hidden=50, seed=123, domain=[-1., 1.]):
         # initialize
         self.activation = activation
         self.vector = vector
+        self.regular = regular
+        self.c = c
         self.n_hidden = n_hidden
         self.np_rng = np.random.RandomState(seed)
         self.domain = domain
         
-    def construct(self, input, teacher, c=0.2):
+    def construct(self, input, teacher):
         # set parameter of layer
         self.input = input
         self.teacher = teacher
-        self.c = c
         classes = []
         for t in teacher:
             if not t in classes:
@@ -64,28 +65,53 @@ class ELMClassifier(object):
         self.n_input = len(input[0])
         self.n_output = len(self.classes)
         low, high = self.domain
-        
+
+        # set weight and bias (randomly)
+        weight = self.np_rng.uniform(low = low, high = high, size = (self.n_input, self.n_hidden))
+        bias = self.np_rng.uniform(low = low, high = high, size = self.n_hidden)
+
         if self.vector == 'orthogonal':
-            # orthogonaly set weight and bias
-            # you should code (orthogonaly, regularization)
+            # orthogonal weight and forcely regularization
             print "set weight and bias orthogonaly"
-            self.weight = np.zeros([self.n_input, self.n_hidden])
-            self.bias = np.zeros(self.n_hidden)
+            for i in xrange(len(weight)):
+                w = weight[i]
+                for j in xrange(0,i):
+                    w = w - weight[j].dot(w) * weight[j]
+                w = w / np.linalg.norm(w)
+                weight[i] = w
+
+            if self.regular:
+                # bias regularization
+                denom = np.linalg.norm(bias)
+                if denom != 0:
+                    denom = bias / denom
+            
             
         elif self.vector == 'random':
-            # randomly set weight and bias
+            # randomly and regulatization
             print "set weight and bias randomly"
-            self.weight = self.np_rng.uniform(low = low, high = high, size = (self.n_input, self.n_hidden))
-            self.bias = self.np_rng.uniform(low = low, high = high, size = self.n_hidden)
-            # regularization
-            # you should code (regularization)
+            if self.regular:
+                #for i,w enumerate(weight.T):
+                for i,w in enumerate(weight):
+                    denom = np.linalg.norm(w)
+                    if denom != 0:
+                        #weight.T[i] = w / denom
+                        weight[i] = w / denom
+
+                # bias regularization
+                denom = np.linalg.norm(bias)
+                if denom != 0:
+                    bias = bias / denom
             
         else:
-            # set weight and bias to zero
-            print "set weight and bias zero"
-            self.weight = np.zeros([self.n_input, self.n_hidden])
-            self.bias = np.zeros(self.n_hidden)
-
+            print "warning: vector isn't orthogonal or random"
+            
+        
+        # set weight and bias
+        self.weight = weight
+        self.bias = bias     
+        
+            
         # initialize layer
         self.layer = Layer(self.activation,
                            [self.n_input, self.n_hidden, self.n_output],
@@ -176,7 +202,9 @@ class Layer(object):
             H.append(self.get_i2h(i))
         H = np.matrix(H)
         if self.c == 0:
+            # Tend to be Memory Error
             Hp = H.T * (H * H.T).I
+            #Hp = H.I
         else:
             id_matrix = np.matrix(np.identity(len(input)))
             Hp = H.T * ((id_matrix / (self.c * 1.)) + H * H.T).I            
