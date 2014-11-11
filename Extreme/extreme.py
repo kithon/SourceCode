@@ -20,22 +20,106 @@ class MLELMClassifier(object):
     """
     
     def __init__(self, n_input, n_hidden, n_output, activation=None):
+        # initialize size of neuron
         self.n_input = n_input
         self.n_hidden = n_hidden
         self.n_output = n_output
-        print "__init__"
+        if activation is None:
+            activation = sigmoid
+        self.activation = activation
+
+        # initialize auto_encoder
+        auto_encoders = []
+        for num in n_hidden:
+            ae = ELMAutoEncoder(n_hidden=num)
+            auto_encoders.append(ae)
+        self.auto_encoders = auto_encoders
 
     def pre_train(self, input):
-        print "pre_train"
+        # pre_train
+        data = input
+        betas = []
+        for ae in self.auto_encoders:
+            ae.fit(data)
 
+            # Path 1
+            
+            # part 1
+            #beta = ae.get_beta()
+
+            # part 2
+            beta = ae.get_beta()
+            #beta = beta / np.linalg.norm(beta)
+            
+            """
+            darkness : 
+            """
+            
+            # Path 2
+
+            # part 1 use activation and bias
+            data = self.activation(np.dot(data, beta.T) + ae.get_bias()) ###test
+
+            # part 2 dot data and beta only
+            #data = np.dot(data, beta.T)
+
+            betas.append(beta)
+
+        self.betas = betas
+        self.data4fine = data
+
+    def fine_tune(self, teacher):
+        print "fine_tune"
+        # initialize classes
+        classes = []
+        for t in teacher:
+            if not t in classes:
+                classes.append(t)
+        self.classes = classes
+        self.n_output = len(self.classes)
+
+        # initialize signal
+        signal = []
+        id_matrix = np.identity(self.n_output).tolist()
+        for t in teacher:
+            signal.append(id_matrix[self.classes.index(t)])
+
+        # initialize data
+        data = self.data4fine  # data = self.activation(self.data4fine)
+
+        # set beta
+        H = np.matrix(data)
+        Hp = H.T * (H * H.T).I
+        beta = np.dot(Hp, np.array(signal))
+        self.fine_beta = beta
         
-    def get_extraction(self, input):
-        print "get_extractation"
-        self.n_input = len(input[0])
+        
+    def pre_extraction(self, input):
+        # pre_extraction
+        data = input
+        for i, ae in enumerate(self.auto_encoders):
+            beta = self.betas[i]
+            print "i:", i
+            print "data:", data
+            print "beta:", beta
+            data = self.activation(np.dot(data, beta.T) + ae.get_bias())
+        return data
 
+    def fine_extraction(self, data):
+        print "fine_extraction"
+        print "data:", np.array(data).shape
+        print "beta:", np.array(self.fine_beta).shape
+        return np.dot(data, self.fine_beta)
         
     def fit(self, input, teacher):
-        print "fit"
+        # fit
+        self.pre_train(input)
+        self.fine_tune(teacher)
+
+    def predict(self, input):
+        hidden = self.pre_extraction(input)
+        output = self.fine_extraction(hidden)
+        return output
 
 class ELMAutoEncoder(object):
     """
@@ -57,7 +141,7 @@ class ELMAutoEncoder(object):
         # set parameter of layer
         self.input = input
         self.n_input = len(input[0])
-        self.n_output = len(self.classes)
+        self.n_output = len(input[0])
         low, high = self.domain
 
         # set weight and bias (randomly)
@@ -65,13 +149,14 @@ class ELMAutoEncoder(object):
         bias = self.np_rng.uniform(low = low, high = high, size = self.n_hidden)
 
         # orthogonal weight and forcely regularization
-        print "set weight and bias orthogonaly"
+        """
         for i in xrange(len(weight)):
             w = weight[i]
             for j in xrange(0,i):
                 w = w - weight[j].dot(w) * weight[j]
             w = w / np.linalg.norm(w)
             weight[i] = w
+        """
 
         # bias regularization
         denom = np.linalg.norm(bias)
@@ -302,12 +387,27 @@ class Layer(object):
 
 
 if __name__ == "__main__":
+    
     train = [[1, 1], [2, 2], [-1, -1], [-2, -2]]
     label = [1, 1, -1, -1]
     test = [[3, 3], [-3, -3]]
 
+    model = MLELMClassifier(n_input=2, n_hidden=[4,8,5], n_output=1)
+
+    model.pre_train(train)
+    model.fine_tune(label)
+
+    print model.predict(train)
+    print model.predict(test)
+
+    """
+    train = [[1, 1], [2, 2], [-1, -1], [-2, -2]]
+    label = [1, 1, -1, -1]
+    test = [[3, 3], [-3, -3]]
+    
     model = ELMClassifier()
     model.fit(train, label)
     pre = model.predict(test)
     print pre
     print model.score(train, label)
+    """
