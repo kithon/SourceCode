@@ -121,6 +121,15 @@ class MLELMClassifier(object):
         output = self.fine_extraction(hidden)
         return output
 
+    def score(self, input, teacher):
+        # get score
+        count = 0
+        length = len(teacher)
+        predict_classes = self.predict(input)
+        for i in xrange(length):
+            if predict_classes[i] == teacher[i]: count += 1
+        return count * 1.0 / length
+
 class ELMAutoEncoder(object):
     """
     Extreme Learning Machine Auto Encoder
@@ -394,8 +403,7 @@ if __name__ == "__main__":
 
     model = MLELMClassifier(n_input=2, n_hidden=[4,8,5], n_output=1)
 
-    model.pre_train(train)
-    model.fine_tune(label)
+    model.fit(train, label)
 
     print model.predict(train)
     print model.predict(test)
