@@ -19,7 +19,10 @@ class MLELMClassifier(object):
     
     """
     
-    def __init__(self, activation=sigmoid, n_hidden=[]):
+    def __init__(self, n_input, n_hidden, n_output, activation=None):
+        self.n_input = n_input
+        self.n_hidden = n_hidden
+        self.n_output = n_output
         print "__init__"
 
     def pre_train(self, input):
@@ -33,7 +36,93 @@ class MLELMClassifier(object):
         
     def fit(self, input, teacher):
         print "fit"
+
+class ELMAutoEncoder(object):
+    """
+    Extreme Learning Machine Auto Encoder
+    
+    
+    """
+
+    def __init__(self, activation=sigmoid,
+                 c=0., n_hidden=50, seed=123, domain=[-1., 1.]):
+        # initialize
+        self.activation = activation
+        self.c = c
+        self.n_hidden = n_hidden
+        self.np_rng = np.random.RandomState(seed)
+        self.domain = domain
         
+    def construct(self, input):
+        # set parameter of layer
+        self.input = input
+        self.n_input = len(input[0])
+        self.n_output = len(self.classes)
+        low, high = self.domain
+
+        # set weight and bias (randomly)
+        weight = self.np_rng.uniform(low = low, high = high, size = (self.n_input, self.n_hidden))
+        bias = self.np_rng.uniform(low = low, high = high, size = self.n_hidden)
+
+        # orthogonal weight and forcely regularization
+        print "set weight and bias orthogonaly"
+        for i in xrange(len(weight)):
+            w = weight[i]
+            for j in xrange(0,i):
+                w = w - weight[j].dot(w) * weight[j]
+            w = w / np.linalg.norm(w)
+            weight[i] = w
+
+        # bias regularization
+        denom = np.linalg.norm(bias)
+        if denom != 0:
+            denom = bias / denom
+        
+        # set weight and bias
+        self.weight = weight
+        self.bias = bias     
+        
+            
+        # initialize layer
+        self.layer = Layer(self.activation,
+                           [self.n_input, self.n_hidden, self.n_output],
+                           self.weight,
+                           self.bias,
+                           self.c)
+
+        
+    def fit(self, input):
+        # construct layer
+        self.construct(input)
+
+        # fit layer
+        self.layer.fit(input, input)
+        
+    def predict(self, input):
+        # get predict_output
+        predict_output = []
+        for i in input:
+            o = self.layer.get_output(i).tolist()
+            predict_output.append(o)
+        return predict_output
+
+    def error(self, input):
+        # get error
+        pre = self.predict(input)
+        err = pre - input
+        err = err * err
+        print "sum of err^2", err.sum()
+        return err.sum()
+
+    def get_weight(self):
+        return self.weight
+
+    def get_bias(self):
+        return self.bias
+
+    def get_beta(self):
+        return self.layer.beta
+    
 
 class ELMClassifier(object):
     """
@@ -138,7 +227,7 @@ class ELMClassifier(object):
         predict_output = []
         for i in input:
             o = self.layer.get_output(i).tolist()
-            predict_output.append(self.layer.get_output(i).tolist())
+            predict_output.append(o)
         #print "outputs", predict_output
 
         # get predict_classes from index of max_function(predict_output) 
