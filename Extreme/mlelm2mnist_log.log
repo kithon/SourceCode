@@ -1,0 +1,9 @@
+hidden: [700, 700, 1500]
+pre_train
+ae fitting
+ae fitting
+ae fitting
+fine_tune
+test score is  0.9406
+valid score is  0.9458
+

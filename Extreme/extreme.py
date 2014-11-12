@@ -37,9 +37,11 @@ class MLELMClassifier(object):
 
     def pre_train(self, input):
         # pre_train
+        print "pre_train"
         data = input
         betas = []
         for ae in self.auto_encoders:
+            print "ae fitting"
             ae.fit(data)
 
             # Path 1
@@ -89,7 +91,8 @@ class MLELMClassifier(object):
 
         # set beta
         H = np.matrix(data)
-        Hp = H.T * (H * H.T).I
+        Hp = H.I
+        #Hp = H.T * (H * H.T).I
         beta = np.dot(Hp, np.array(signal))
         self.fine_beta = beta
         
@@ -99,16 +102,16 @@ class MLELMClassifier(object):
         data = input
         for i, ae in enumerate(self.auto_encoders):
             beta = self.betas[i]
-            print "i:", i
-            print "data:", data
-            print "beta:", beta
+            #print "i:", i
+            #print "data:", data
+            #print "beta:", beta
             data = self.activation(np.dot(data, beta.T) + ae.get_bias())
         return data
 
     def fine_extraction(self, data):
-        print "fine_extraction"
-        print "data:", np.array(data).shape
-        print "beta:", np.array(self.fine_beta).shape
+        #print "fine_extraction"
+        #print "data:", np.array(data).shape
+        #print "beta:", np.array(self.fine_beta).shape
         return np.dot(data, self.fine_beta)
         
     def fit(self, input, teacher):
@@ -119,7 +122,13 @@ class MLELMClassifier(object):
     def predict(self, input):
         hidden = self.pre_extraction(input)
         output = self.fine_extraction(hidden)
-        return output
+        output = np.array(output)
+        
+        predict_classes = []
+        for o in output:
+            predict_classes.append(self.classes[np.argmax(o)])
+
+        return predict_classes
 
     def score(self, input, teacher):
         # get score
@@ -127,7 +136,8 @@ class MLELMClassifier(object):
         length = len(teacher)
         predict_classes = self.predict(input)
         for i in xrange(length):
-            if predict_classes[i] == teacher[i]: count += 1
+            if predict_classes[i] == teacher[i]:
+                count += 1
         return count * 1.0 / length
 
 class ELMAutoEncoder(object):
@@ -386,8 +396,8 @@ class Layer(object):
         H = np.matrix(H)
         if self.c == 0:
             # Tend to be Memory Error
-            Hp = H.T * (H * H.T).I
-            #Hp = H.I
+            #Hp = H.T * (H * H.T).I
+            Hp = H.I
         else:
             id_matrix = np.matrix(np.identity(len(input)))
             Hp = H.T * ((id_matrix / (self.c * 1.)) + H * H.T).I            
@@ -407,7 +417,7 @@ if __name__ == "__main__":
 
     print model.predict(train)
     print model.predict(test)
-
+    print "score:", model.score(train, label)
     """
     train = [[1, 1], [2, 2], [-1, -1], [-2, -2]]
     label = [1, 1, -1, -1]
