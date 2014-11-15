@@ -1,6 +1,7 @@
 # coding: utf-8
 # online learning
-                                  
+
+import sys
 import numpy as np
 
 def sigmoid(x):
@@ -19,19 +20,25 @@ class MLELMClassifier(object):
     
     """
     
-    def __init__(self, n_input, n_hidden, n_output, activation=None):
+    def __init__(self, n_hidden=None, n_coef=None,
+                 fine_coef=1000.,activation=None):
         # initialize size of neuron
-        self.n_input = n_input
+        if n_hidden is None:
+            raise Exception("nlist_hidden is udefined")
         self.n_hidden = n_hidden
-        self.n_output = n_output
+        if n_coef is None:
+            n_coef = [0] * len(n_hidden)
+        self.coef = n_coef
+        self.fine_coef = fine_coef
         if activation is None:
             activation = sigmoid
         self.activation = activation
 
         # initialize auto_encoder
         auto_encoders = []
-        for num in n_hidden:
-            ae = ELMAutoEncoder(n_hidden=num)
+        for i, num in enumerate(n_hidden):
+            ae = ELMAutoEncoder(activation=activation,
+                                n_hidden=num, coef=n_coef[i])
             auto_encoders.append(ae)
         self.auto_encoders = auto_encoders
 
@@ -40,62 +47,63 @@ class MLELMClassifier(object):
         print "pre_train"
         data = input
         betas = []
-        for ae in self.auto_encoders:
-            print "ae fitting"
+        for i, ae in enumerate(self.auto_encoders):
+            # fit auto_encoder
+            print " ", i,"ae fit"
             ae.fit(data)
 
-            # Path 1
-            
-            # part 1
-            #beta = ae.get_beta()
-
-            # part 2
+            # get beta
             beta = ae.get_beta()
-            #beta = beta / np.linalg.norm(beta)
             
-            """
-            darkness : 
-            """
-            
-            # Path 2
+            # part use activation and bias
+            act = np.dot(data, beta.T) + ae.get_bias()
+            data = self.activation(act)
 
-            # part 1 use activation and bias
-            data = self.activation(np.dot(data, beta.T) + ae.get_bias()) ###test
-
-            # part 2 dot data and beta only
-            #data = np.dot(data, beta.T)
-
+            # append beta
             betas.append(beta)
 
+        # set betas and data for fine_tune
         self.betas = betas
         self.data4fine = data
 
     def fine_tune(self, teacher):
         print "fine_tune"
-        # initialize classes
-        classes = []
-        for t in teacher:
-            if not t in classes:
-                classes.append(t)
-        self.classes = classes
-        self.n_output = len(self.classes)
+        # get data for fine_tune
+        sys.stdout.write("\r  data for fine_tune")
+        sys.stdout.flush()
+        H = np.array(self.data4fine)
+        # data = self.activation(self.data4fine)
+        signal = self.signal
+        print " done."
+        
+        # coefficient of regularization for fine_tune
+        sys.stdout.write("\r  coefficient")
+        sys.stdout.flush()
+        np_id = np.identity(min(H.shape))
+        if self.fine_coef == 0:
+            coefficient = 0
+        else:
+            coefficient = 1. / self.fine_coef
+        print " done."
+        
+        # pseudo inverse
+        sys.stdout.write("\r  pseudo inverse")
+        sys.stdout.flush()
+        regular = coefficient * np_id
+        if H.shape[0] < H.shape[1]:
+            Hp = np.linalg.inv(np.dot(H, H.T) + regular)
+            Hp = np.dot(H.T, Hp)
+        else:
+            Hp = np.linalg.inv(np.dot(H.T, H) + regular)
+            Hp = np.dot(Hp, H.T)
+        print " done."
 
-        # initialize signal
-        signal = []
-        id_matrix = np.identity(self.n_output).tolist()
-        for t in teacher:
-            signal.append(id_matrix[self.classes.index(t)])
-
-        # initialize data
-        data = self.data4fine  # data = self.activation(self.data4fine)
-
-        # set beta
-        H = np.matrix(data)
-        Hp = H.I
-        #Hp = H.T * (H * H.T).I
+        # set beta for fine_tune
+        sys.stdout.write("\r  set beta")
+        sys.stdout.flush()
         beta = np.dot(Hp, np.array(signal))
         self.fine_beta = beta
-        
+        print " done."
         
     def pre_extraction(self, input):
         # pre_extraction
@@ -115,21 +123,39 @@ class MLELMClassifier(object):
         return np.dot(data, self.fine_beta)
         
     def fit(self, input, teacher):
-        # fit
+        # initialize classes
+        classes = []
+        for t in teacher:
+            if not t in classes:
+                classes.append(t)
+        self.classes = classes
+        self.n_input = len(input[0])
+        self.n_output = len(self.classes)
+        
+        # initialize signal
+        signal = []
+        id_matrix = np.identity(self.n_output).tolist()
+        for t in teacher:
+            signal.append(id_matrix[self.classes.index(t)])
+        self.signal = signal
+            
+        # pre_train fine_tune
         self.pre_train(input)
         self.fine_tune(teacher)
 
     def predict(self, input):
+        # get predict_output
         hidden = self.pre_extraction(input)
         output = self.fine_extraction(hidden)
-        output = np.array(output)
-        
+        predict_output = np.array(output)
+
+        # get predict_classes from index of max_function(predict_output)
         predict_classes = []
-        for o in output:
+        for o in predict_output:
             predict_classes.append(self.classes[np.argmax(o)])
 
         return predict_classes
-
+    
     def score(self, input, teacher):
         # get score
         count = 0
@@ -148,14 +174,23 @@ class ELMAutoEncoder(object):
     """
 
     def __init__(self, activation=sigmoid,
-                 c=0., n_hidden=50, seed=123, domain=[-1., 1.]):
+                 n_hidden=50, coef=0., seed=123, domain=[-1., 1.]):
         # initialize
         self.activation = activation
-        self.c = c
         self.n_hidden = n_hidden
+        self.coef = coef
         self.np_rng = np.random.RandomState(seed)
         self.domain = domain
         
+    def get_weight(self):
+        return self.weight
+
+    def get_bias(self):
+        return self.bias
+
+    def get_beta(self):
+        return self.layer.beta
+            
     def construct(self, input):
         # set parameter of layer
         self.input = input
@@ -164,18 +199,23 @@ class ELMAutoEncoder(object):
         low, high = self.domain
 
         # set weight and bias (randomly)
-        weight = self.np_rng.uniform(low = low, high = high, size = (self.n_input, self.n_hidden))
-        bias = self.np_rng.uniform(low = low, high = high, size = self.n_hidden)
+        weight = self.np_rng.uniform(low = low,
+                                     high = high,
+                                     size = (self.n_input,
+                                             self.n_hidden))
+        bias = self.np_rng.uniform(low = low,
+                                   high = high,
+                                   size = self.n_hidden)
 
         # orthogonal weight and forcely regularization
-        """
+        
         for i in xrange(len(weight)):
             w = weight[i]
             for j in xrange(0,i):
                 w = w - weight[j].dot(w) * weight[j]
             w = w / np.linalg.norm(w)
             weight[i] = w
-        """
+            
 
         # bias regularization
         denom = np.linalg.norm(bias)
@@ -192,7 +232,7 @@ class ELMAutoEncoder(object):
                            [self.n_input, self.n_hidden, self.n_output],
                            self.weight,
                            self.bias,
-                           self.c)
+                           self.coef)
 
         
     def fit(self, input):
@@ -209,7 +249,16 @@ class ELMAutoEncoder(object):
             o = self.layer.get_output(i).tolist()
             predict_output.append(o)
         return predict_output
-
+    
+    def score(self, input, teacher):
+        # get score 
+        count = 0
+        length = len(teacher)
+        predict_classes = self.predict(input)
+        for i in xrange(length):
+            if predict_classes[i] == teacher[i]: count += 1
+        return count * 1.0 / length
+    
     def error(self, input):
         # get error
         pre = self.predict(input)
@@ -217,15 +266,6 @@ class ELMAutoEncoder(object):
         err = err * err
         print "sum of err^2", err.sum()
         return err.sum()
-
-    def get_weight(self):
-        return self.weight
-
-    def get_bias(self):
-        return self.bias
-
-    def get_beta(self):
-        return self.layer.beta
     
 
 class ELMClassifier(object):
@@ -235,19 +275,27 @@ class ELMClassifier(object):
     
     """
 
-    def __init__(self, activation=sigmoid, vector='orthogonal', regular=True,
-                 c=0., n_hidden=50, seed=123, domain=[-1., 1.]):
+    def __init__(self, activation=sigmoid, vector='orthogonal',
+                 coef=0., n_hidden=50, seed=123, domain=[-1., 1.]):
         # initialize
         self.activation = activation
         self.vector = vector
-        self.regular = regular
-        self.c = c
+        self.coef = coef
         self.n_hidden = n_hidden
         self.np_rng = np.random.RandomState(seed)
         self.domain = domain
         
+    def get_weight(self):
+        return self.weight
+
+    def get_bias(self):
+        return self.bias
+
+    def get_beta(self):
+        return self.layer.beta
+    
     def construct(self, input, teacher):
-        # set parameter of layer
+        # set input, teacher and class
         self.input = input
         self.teacher = teacher
         classes = []
@@ -257,14 +305,19 @@ class ELMClassifier(object):
         self.classes = classes
         self.n_input = len(input[0])
         self.n_output = len(self.classes)
+
+        # weight and bias
         low, high = self.domain
+        weight = self.np_rng.uniform(low = low,
+                                     high = high,
+                                     size = (self.n_input,
+                                             self.n_hidden))
+        bias = self.np_rng.uniform(low = low,
+                                   high = high,
+                                   size = self.n_hidden)
 
-        # set weight and bias (randomly)
-        weight = self.np_rng.uniform(low = low, high = high, size = (self.n_input, self.n_hidden))
-        bias = self.np_rng.uniform(low = low, high = high, size = self.n_hidden)
-
+        # condition : orthogonal random else
         if self.vector == 'orthogonal':
-            # orthogonal weight and forcely regularization
             print "set weight and bias orthogonaly"
             for i in xrange(len(weight)):
                 w = weight[i]
@@ -273,44 +326,41 @@ class ELMClassifier(object):
                 w = w / np.linalg.norm(w)
                 weight[i] = w
 
-            if self.regular:
-                # bias regularization
-                denom = np.linalg.norm(bias)
-                if denom != 0:
-                    denom = bias / denom
-            
-            
+            # regularize bias
+            denom = np.linalg.norm(bias)
+            if denom != 0:
+                denom = bias / denom
+                    
         elif self.vector == 'random':
-            # randomly and regulatization
             print "set weight and bias randomly"
-            if self.regular:
-                #for i,w enumerate(weight.T):
-                for i,w in enumerate(weight):
-                    denom = np.linalg.norm(w)
-                    if denom != 0:
-                        #weight.T[i] = w / denom
-                        weight[i] = w / denom
-
-                # bias regularization
-                denom = np.linalg.norm(bias)
-                if denom != 0:
-                    bias = bias / denom
+            # regularize weight
             
+            #for i,w enumerate(weight.T):
+            for i,w in enumerate(weight):
+                denom = np.linalg.norm(w)
+                if denom != 0:
+                    #weight.T[i] = w / denom
+                    weight[i] = w / denom
+
+            # regularize bias
+            denom = np.linalg.norm(bias)
+            if denom != 0:
+                bias = bias / denom
+                    
         else:
             print "warning: vector isn't orthogonal or random"
             
         
-        # set weight and bias
+        # self weight and bias
         self.weight = weight
-        self.bias = bias     
-        
+        self.bias = bias
             
-        # initialize layer
+        # self layer
         self.layer = Layer(self.activation,
                            [self.n_input, self.n_hidden, self.n_output],
                            self.weight,
                            self.bias,
-                           self.c)
+                           self.coef)
 
         
     def fit(self, input, teacher):
@@ -350,15 +400,7 @@ class ELMClassifier(object):
         for i in xrange(length):
             if predict_classes[i] == teacher[i]: count += 1
         return count * 1.0 / length
-
-    def get_weight(self):
-        return self.weight
-
-    def get_bias(self):
-        return self.bias
-
-    def get_beta(self):
-        return self.layer.beta
+    
 
 class Layer(object):
     def __init__(self, activation, size, w, b, c):
@@ -375,35 +417,58 @@ class Layer(object):
         return self.beta
         
     def get_i2h(self, input):
-        # activation from input to hidden
         return self.activation(np.dot(self.w.T, input) + self.b)
 
     def get_h2o(self, hidden):
-        # activation from hidden to output
         return np.dot(self.beta.T, hidden)
 
     def get_output(self, input):
-        # activation from input to output
-        hidden = self.get_i2h(input)
-        output = self.get_h2o(hidden)
+        hidden = self.get_i2h(input)  # from input to hidden
+        output = self.get_h2o(hidden) # from hidden to output
         return output
     
     def fit(self, input, signal):
-        # set self.beta from activation
+        """
+        fit : set beta
+        risk : memory error (dot)
+        """
+        
+        # get activation of hidden layer
         H = []
-        for i in input:
-            H.append(self.get_i2h(i))
-        H = np.matrix(H)
-        if self.c == 0:
-            # Tend to be Memory Error
-            #Hp = H.T * (H * H.T).I
-            Hp = H.I
-        else:
-            id_matrix = np.matrix(np.identity(len(input)))
-            Hp = H.T * ((id_matrix / (self.c * 1.)) + H * H.T).I            
-        Hp = np.array(Hp)
-        self.beta = np.dot(Hp, np.array(signal))
+        for i, d in enumerate(input):
+            sys.stdout.write("\r    input %d" % (i+1))
+            sys.stdout.flush()
+            H.append(self.get_i2h(d))
+        print " done."
 
+        # coefficient of regularization
+        sys.stdout.write("\r    coefficient")
+        sys.stdout.flush()
+        np_id = np.identity(min(np.array(H).shape))
+        if self.c == 0:
+            coefficient = 0
+        else:
+            coefficient = 1. / self.c
+        print " done."
+
+        # pseudo inverse
+        sys.stdout.write("\r    pseudo inverse")
+        sys.stdout.flush()
+        H = np.array(H)
+        regular = coefficient * np_id
+        if H.shape[0] < H.shape[1]:
+            Hp = np.linalg.inv(np.dot(H, H.T) + regular)
+            Hp = np.dot(H.T, Hp)
+        else:
+            Hp = np.linalg.inv(np.dot(H.T, H) + regular)
+            Hp = np.dot(Hp, H.T)
+        print " done."
+            
+        # set beta
+        sys.stdout.write("\r    set beta")
+        sys.stdout.flush()
+        self.beta = np.dot(Hp, np.array(signal))
+        print " done."
 
 if __name__ == "__main__":
     
@@ -411,7 +476,7 @@ if __name__ == "__main__":
     label = [1, 1, -1, -1]
     test = [[3, 3], [-3, -3]]
 
-    model = MLELMClassifier(n_input=2, n_hidden=[4,8,5], n_output=1)
+    model = MLELMClassifier(n_hidden=[4,8,5])
 
     model.fit(train, label)
 

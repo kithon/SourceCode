@@ -28,7 +28,7 @@ def mnist_mlelm(n_hidden=[1000]):
     test_data, test_target = test_data[:test_size], test_target[:test_size]
 
     # model
-    model = MLELMClassifier(n_input=784, n_hidden = n_hidden, n_output=10)
+    model = MLELMClassifier(n_hidden = n_hidden)
 
     # fit
     #print "fitting ..."
