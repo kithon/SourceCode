@@ -9,7 +9,7 @@ def load_mnist():
     f.close()
     return train_set, valid_set, test_set
 
-def mnist_elm(n_hidden=50, domain=[-1., 1.]):
+def mnist_elm(n_hidden=5, domain=[-1., 1.]):
     print "hidden:", n_hidden
 
     # initialize
