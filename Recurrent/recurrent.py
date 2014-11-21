@@ -17,7 +17,7 @@ def sign(x):
 class RecurrentLayer(object):
     # 3 layers (input, hidden, output)
     def __init__(self, n_layer=None,
-                 low=-1., high=1., alpha=0.5, beta=0.0001, trun=3,
+                 low=-1., high=1., alpha=0.1, beta=0.00001, trun=2,
                  a_hidden=sigmoid, a_output=softmax, np_rng=None):
         # parameter
         if n_layer is None:
@@ -111,14 +111,89 @@ class RecurrentLayer(object):
 
         self.u = (1. - self.beta) * self.u + self.alpha * sigma_u
         self.w = (1. - self.beta) * self.w + self.alpha * sigma_w
-  
 
-def test(epoch=500):
+    def train(self, input, teacher):
+        self.get_output(input)
+        self.back_propagation(teacher)
+
+    def predict(self, input):
+        return self.get_output(input)
+        
+  
+def dataGenerator(n_input, n_output, size=20, term=2):
+    data = []
+    seed = 123
+    np_rng = np.random.RandomState(seed)
+    p = 0.5
+
+    bino = np_rng.binomial(n=1, p=p, size=[size, n_input])
+    for i in xrange(size):
+        input = bino[i]
+        head = max(0, i - term + 1)
+        tail = i+1
+        index = bino[head:tail].sum() % n_output
+        label = [0] * n_output
+        label[index] = 1
+        data.append([input.tolist(), label])
+
+    return np.array(data)
+
+
+def test(epoch=1000):
+    n_input  = 10
+    n_hidden = 8
+    n_output = 10
+    train_size = 100
+    test_size  = 100
+    term = 3
+    
+    nn = RecurrentLayer(n_layer = [n_input, n_hidden, n_output])
+    trainData = dataGenerator(n_input, n_output, train_size, term)
+    testData  = dataGenerator(n_input, n_output, test_size,  term)
+
+
+    print "train ..."
+    for i in xrange(epoch):
+        #print "."
+        for d in trainData:
+            nn.train(d[0], d[1])
+    print "done ."
+
+    print "train ..."
+    count = 0
+    for d in trainData:
+        output = nn.get_output(d[0])
+        if output.argmax() == d[1].argmax():
+            count += 1
+        #print "input:",d[0], "output:",nn.get_output(d[0]), "signal",d[1]
+    print "done ."
+    print "score : ", count * 1./ train_size
+    
+    print "test ..."
+    count = 0
+    for d in testData:
+        output = nn.get_output(d[0])
+        if output.argmax() == d[1].argmax():
+            count += 1
+        #print "input:",d[0], "output:",nn.get_output(d[0]), "signal",d[1]
+    print "done ."
+    print "score : ", count * 1./ test_size
+    
+        
+def pretest(epoch=1000):
     nn = RecurrentLayer(n_layer = [2, 10, 2])
     data = np.array([[[0,0],[0,1]],
                      [[0,1],[1,0]],
+                     [[1,0],[0,1]],
+                     [[1,1],[1,0]],
+                     [[0,1],[1,0]],
+                     [[0,0],[1,0]],
+                     [[1,1],[0,1]],
                      [[1,0],[1,0]],
-                     [[1,1],[0,1]]])
+                     [[1,0],[0,1]],
+                     [[1,1],[1,0]],
+                     [[0,0],[0,1]],
+                     [[0,1],[1,0]]])
     #data = np.array([[[1,1], [0,1]]])
     
     for i in xrange(epoch):
