@@ -117,7 +117,11 @@ class RecurrentLayer(object):
         self.back_propagation(teacher)
 
     def predict(self, input):
-        return self.get_output(input)
+        self.hidden = None
+        output = self.get_output(input)
+        self.hidden = None
+        return output
+    
         
   
 def dataGenerator(n_input, n_output, size=20, term=2, seed=123):
@@ -139,12 +143,12 @@ def dataGenerator(n_input, n_output, size=20, term=2, seed=123):
 
 
 def test(epoch=1000):
-    n_input  = 10
+    n_input  = 20
     n_hidden = 8
-    n_output = 10
-    train_size = 100
-    test_size  = 100
-    term = 3
+    n_output = 20
+    train_size = 1000
+    test_size  = 1000
+    term = 1
     
     nn = RecurrentLayer(n_layer = [n_input, n_hidden, n_output])
     trainData = dataGenerator(n_input, n_output, train_size, term, 123)
