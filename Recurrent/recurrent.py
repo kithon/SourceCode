@@ -120,9 +120,8 @@ class RecurrentLayer(object):
         return self.get_output(input)
         
   
-def dataGenerator(n_input, n_output, size=20, term=2):
+def dataGenerator(n_input, n_output, size=20, term=2, seed=123):
     data = []
-    seed = 123
     np_rng = np.random.RandomState(seed)
     p = 0.5
 
@@ -148,8 +147,8 @@ def test(epoch=1000):
     term = 3
     
     nn = RecurrentLayer(n_layer = [n_input, n_hidden, n_output])
-    trainData = dataGenerator(n_input, n_output, train_size, term)
-    testData  = dataGenerator(n_input, n_output, test_size,  term)
+    trainData = dataGenerator(n_input, n_output, train_size, term, 123)
+    testData  = dataGenerator(n_input, n_output, test_size,  term, 1234)
 
 
     print "train ..."
