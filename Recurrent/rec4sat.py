@@ -45,7 +45,8 @@ def checkSat(input, output, n_val):
 def testRecurrent():
     # initialize
     epoch = 1000
-    num = 100
+    train_num = 500
+    test_num = 100
     n_sat = 3
     n_val = 10
     n_len = 30
@@ -54,28 +55,37 @@ def testRecurrent():
     count = 0
     for i in xrange(num):
         data, signal = generateSat(n_len, n_val, n_sat)
-        #print data
+         #print data
         if checkSat(data, signal, n_val):
             count += 1
     print count
     """
 
-    # generate sat data
-    sat = []
-    for i in xrange(num):
+    # generate train sat data
+    train_sat = []
+    for i in xrange(train_num):
         data, signal = generateSat(n_len, n_val, n_sat)
-        sat.append([data, signal])
+        train_sat.append([data, signal])
         if not checkSat(data, signal, n_val):
-            print "error !!"
+            print "train error !!"
+            print data, signal
+
+    # generate test sat data
+    test_sat = []
+    for i in xrange(test_num):
+        data, signal = generateSat(n_len, n_val, n_sat)
+        test_sat.append([data, signal])
+        if not checkSat(data, signal, n_val):
+            print "test error !!"
             print data, signal
 
     # generate model
-    nn = RecurrentLayer(n_layer = [2 * n_val + 1, 20, n_val], trun=n_len, a_output = sigmoid)
+    nn = RecurrentLayer(n_layer = [2 * n_val + 1, 20, n_val], alpha=0.005, beta=0.000001, trun=n_len, a_output = sigmoid)
     #nn = RecurrentLayer(n_layer = [2 * n_val + 1, 20, n_val], trun=n_len)
 
-    # test for train data
+    # train acuraccy
     count = 0
-    for data in sat:
+    for data in train_sat:
         for d in data[0]:
             #output = nn.get_output(d)
             output = sign(nn.get_output(d))
@@ -83,12 +93,24 @@ def testRecurrent():
         #print output
         if checkSat(data[0], output, n_val):
             count += 1
-    print "accuracy:", count,  "/", num
+    print "train accuracy:", count,  "/", train_num
+
+    # test acuraccy
+    count = 0
+    for data in test_sat:
+        for d in data[0]:
+            #output = nn.get_output(d)
+            output = sign(nn.get_output(d))
+        nn.reset()
+        #print output
+        if checkSat(data[0], output, n_val):
+            count += 1
+    print "test accuracy:", count,  "/", test_num
     
     # train
     for i in xrange(epoch):
         print "epoch:", i
-        for data in sat:
+        for data in train_sat:
             for d in data[0]:
                 nn.get_output(d)
                 #print nn.get_output(d)
@@ -96,10 +118,10 @@ def testRecurrent():
             
             nn.back_propagation(signal)
             nn.reset()
-            
-        # test for train data
+
+        # train acuraccy
         count = 0
-        for data in sat:
+        for data in train_sat:
             for d in data[0]:
                 #output = nn.get_output(d)
                 output = sign(nn.get_output(d))
@@ -107,19 +129,45 @@ def testRecurrent():
             #print output
             if checkSat(data[0], output, n_val):
                 count += 1
-        print "accuracy:", count,  "/", num
+        print "train accuracy:", count,  "/", train_num
 
+        # test acuraccy
+        count = 0
+        for data in test_sat:
+            for d in data[0]:
+                #output = nn.get_output(d)
+                output = sign(nn.get_output(d))
+            nn.reset()
+            #print output
+            if checkSat(data[0], output, n_val):
+                count += 1
+        print "test accuracy:", count,  "/", test_num
     
-    # test for train data
+
+    # train acuraccy
     count = 0
-    for data in sat:
+    for data in train_sat:
         for d in data[0]:
             #output = nn.get_output(d)
             output = sign(nn.get_output(d))
         nn.reset()
+        #print output
         if checkSat(data[0], output, n_val):
             count += 1
-    print "accuracy:", count,  "/", num
+    print "train accuracy:", count,  "/", train_num
+
+    # test acuraccy
+    count = 0
+    for data in test_sat:
+        for d in data[0]:
+            #output = nn.get_output(d)
+            output = sign(nn.get_output(d))
+        nn.reset()
+        #print output
+        if checkSat(data[0], output, n_val):
+            count += 1
+    print "test accuracy:", count,  "/", test_num
+    
 
 if __name__ == '__main__':
     testRecurrent()
