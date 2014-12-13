@@ -162,11 +162,7 @@ def test(epoch=1000):
 
     print "train ..."
     for i in xrange(epoch):
-<<<<<<< HEAD
         print "."
-=======
-    #print "."
->>>>>>> 21ae12465412be5f73621d5f45d7c3bb3ce53357
         for d in trainData:
             nn.train(d[0], d[1])
     print "done ."
