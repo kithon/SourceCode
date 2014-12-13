@@ -1,19 +1,21 @@
 # coding: utf-8
 
 import numpy as np
+import gnumpy as gnp
+
+ga = gnp.garray
 
 def sigmoid(x):
-    return 1. / (1 + np.exp(-x))
+    return 1. / (1 + gnp.exp(-x))
 
 def tanh(x):
-    return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
+    return (gnp.exp(x) - gnp.exp(-x)) / (gnp.exp(x) + gnp.exp(-x))
 
 def softmax(x):
-    return np.exp(sigmoid(x)) / np.exp(sigmoid(x)).sum()
-    #return np.exp(x) / np.exp(x).sum()
+    return gnp.exp(x) / gnp.exp(x).sum()
 
 def sign(x):
-    return (np.sign(x - 0.5) + 1) / 2
+    return (gnp.sign(x - 0.5) + 1) / 2
         
 class RecurrentLayer(object):
     # 3 layers (input, hidden, output)
@@ -39,15 +41,15 @@ class RecurrentLayer(object):
         self.np_rng = np_rng
 
         # each weight
-        self.u = self.np_rng.uniform(low = low,
-                                     high = high,
-                                     size = (self.n_input, self.n_hidden))
-        self.w = self.np_rng.uniform(low = low, 
-                                     high = high,
-                                     size = (self.n_hidden, self.n_hidden))
-        self.v = self.np_rng.uniform(low = low, 
-                                     high = high,
-                                     size = (self.n_hidden, self.n_output))
+        self.u = ga(self.np_rng.uniform(low = low,
+                                        high = high,
+                                        size = (self.n_input, self.n_hidden)))
+        self.w = ga(self.np_rng.uniform(low = low, 
+                                        high = high,
+                                        size = (self.n_hidden, self.n_hidden)))
+        self.v = ga(self.np_rng.uniform(low = low, 
+                                        high = high,
+                                        size = (self.n_hidden, self.n_output)))
                                      
     def get_output(self, input):
         past = []
@@ -67,12 +69,12 @@ class RecurrentLayer(object):
             self.hidden = np.zeros(self.n_hidden)
 
         #print self.hidden
-        self.hidden = self.a_hidden(np.dot(self.u.T, self.input) + 
-                                    np.dot(self.w.T, self.hidden))
+        self.hidden = self.a_hidden(gnp.dot(self.u.T, self.input) + 
+                                    gnp.dot(self.w.T, self.hidden))
         
         # set output
         #print "dot", np.dot(self.v.T, self.hidden)
-        self.output = self.a_output(np.dot(self.v.T, self.hidden))
+        self.output = self.a_output(gnp.dot(self.v.T, self.hidden))
 
         # append past_data (store (self.trun + 1) past's)
         if len(past) != 0:
@@ -84,31 +86,30 @@ class RecurrentLayer(object):
 
     def back_propagation(self, teacher):
         # back propagation through time
-        
+
         # update self.v
-        e0 = np.array([teacher - self.output])
+        e0 = ga([teacher - self.output])
         self.v = ((1. - self.beta) * self.v +
-                  self.alpha * np.dot(np.array([self.hidden]).T, e0))
+                  self.alpha * gnp.dot(ga([self.hidden]).T, e0))
         
 
         # update self.u self.w
-        error = (np.dot(e0, self.v.T) *
-                 np.array(self.hidden * (1. - self.hidden)))
-        sigma_u = np.dot(np.array([self.input]).T, error)
-        sigma_w = np.zeros(self.w.shape)
+        error = gnp.dot(e0, self.v.T) * self.hidden * (1. - self.hidden)
+        sigma_u = gnp.dot(ga([self.input]).T, error)
+        sigma_w = gnp.zeros(self.w.shape)
 
         if len(self.past_data) != 0:
             input, hidden = self.past_data[::-1][0]
-            sigma_w += np.dot(np.array([hidden]).T, error)
+            sigma_w += gnp.dot(ga([hidden]).T, error)
             
         for i in xrange(len(self.past_data) - 1):
             input, hidden = self.past_data[::-1][i]
             p_input, p_hidden = self.past_data[::-1][i+1]
             
-            error = (np.dot(error, self.w.T) * np.array(hidden * (1. - hidden)))
+            error = gnp.dot(error, self.w.T) * hidden * (1. - hidden)
 
-            sigma_u += np.dot(np.array([input]).T, error)
-            sigma_w += np.dot(np.array([p_hidden]).T, error)
+            sigma_u += gnp.dot(ga([input]).T, error)
+            sigma_w += gnp.dot(ga([p_hidden]).T, error)
 
         self.u = (1. - self.beta) * self.u + self.alpha * sigma_u
         self.w = (1. - self.beta) * self.w + self.alpha * sigma_w
@@ -123,11 +124,7 @@ class RecurrentLayer(object):
         self.hidden = None
         return output
     
-    def reset(self):
-        self.input = None
-        self.hidden = None
-        self.past_data = []
-
+        
   
 def dataGenerator(n_input, n_output, size=20, term=2, seed=123):
     data = []
@@ -144,7 +141,7 @@ def dataGenerator(n_input, n_output, size=20, term=2, seed=123):
         label[index] = 1
         data.append([input.tolist(), label])
 
-    return np.array(data)
+    return ga(data)
 
 
 def test(epoch=1000):
@@ -190,7 +187,7 @@ def test(epoch=1000):
         
 def pretest(epoch=1000):
     nn = RecurrentLayer(n_layer = [2, 10, 2])
-    data = np.array([[[0,0],[0,1]],
+    data = ga([[[0,0],[0,1]],
                      [[0,1],[1,0]],
                      [[1,0],[0,1]],
                      [[1,1],[1,0]],
