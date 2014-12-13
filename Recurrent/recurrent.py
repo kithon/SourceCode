@@ -9,7 +9,8 @@ def tanh(x):
     return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
 
 def softmax(x):
-    return np.exp(x) / np.exp(x).sum()
+    return np.exp(sigmoid(x)) / np.exp(sigmoid(x)).sum()
+    #return np.exp(x) / np.exp(x).sum()
 
 def sign(x):
     return (np.sign(x - 0.5) + 1) / 2
@@ -122,7 +123,11 @@ class RecurrentLayer(object):
         self.hidden = None
         return output
     
-        
+    def reset(self):
+        self.input = None
+        self.hidden = None
+        self.past_data = []
+
   
 def dataGenerator(n_input, n_output, size=20, term=2, seed=123):
     data = []
@@ -157,7 +162,11 @@ def test(epoch=1000):
 
     print "train ..."
     for i in xrange(epoch):
+<<<<<<< HEAD
         print "."
+=======
+    #print "."
+>>>>>>> 21ae12465412be5f73621d5f45d7c3bb3ce53357
         for d in trainData:
             nn.train(d[0], d[1])
     print "done ."
