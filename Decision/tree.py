@@ -8,15 +8,26 @@ class DecisionTree(object):
         self.dim = 100
         self.np_rng = np.random.RandomState(seed)
 
-    def generate_threshold(self, size=10):
+    def generate_threshold(self, data, size=10):
         def threshold(selected_dim, theta):
             def function(input):
+                #print "thre:", "selected_dim", selected_dim,"theta", theta
                 return input[selected_dim] - theta
             return function
-        
+
+        #numpy_data = np.array(data)
         for i in xrange(size):
+            """
+            selected_dim = self.np_rng.randint(self.dim)
+            selected_row = numpy_data.T[selected_dim]
+            min_row = selected_row.min()
+            max_row = selected_row.max()
+            theta = self.np_rng.rand() * (max_row - min_row) + min_row
+            print "gen:", "selected_dim", selected_dim,"theta", theta
+            """
             selected_dim = self.np_rng.randint(self.dim)
             theta = self.np_rng.rand()
+            print "gen:", "selected_dim", selected_dim,"theta", theta
             yield threshold(selected_dim, theta)
 
     def normalize_input(self, input):
@@ -40,12 +51,12 @@ class DecisionTree(object):
         self.label_type = label_type
         return label_index
         
-    def fit(self, input, signal):
+    def fit(self, input, signal, d_limit=None):
         # fit
         data = self.normalize_input(input)
         label = self.normalize_signal(signal)
         self.dim = len(data[0])
-        self.tree = Tree(data, label, self.generate_threshold, d_limit=None)
+        self.tree = Tree(data, label, self.generate_threshold, d_limit)
 
     def predict(self, input):
         # predict
@@ -87,11 +98,14 @@ class Tree(object):
         else:
             # continue
             self.terminal = False
-            thresholds = [t for t in gen_threshold()]
-            self.function = self.opt_threshold(data, label, thresholds)
+            l_data, l_label, r_data, r_label = [], [], [], []
+            while len(l_data) == 0 or len(r_data) == 0:
+                thresholds = [t for t in gen_threshold(data)]
+                self.function = self.opt_threshold(data, label, thresholds)
 
-            # divide
-            l_data, l_label, r_data, r_label = self.divide(data, label, self.function)
+                # divide
+                l_data, l_label, r_data, r_label = self.divide(data, label, self.function)
+                print "len", len(l_data), len(r_data)
             self.l_tree = Tree(l_data, l_label, gen_threshold, d_limit, depth+1)
             self.r_tree = Tree(r_data, r_label, gen_threshold, d_limit, depth+1)
 
@@ -102,6 +116,7 @@ class Tree(object):
             index = (function(d) > 0)
             lr_data[index].append(d)
             lr_label[index].append(label[i])
+            print lr_label, index, label, i
             
         l_data, r_data = lr_data
         l_label, r_label = lr_label
@@ -126,6 +141,7 @@ class Tree(object):
             for c in counter:
                 p = 1. * c[1] / sub_size
                 sub = (1. * sub_size / set_size)
+                print "sub", sub * p * (1. - p) 
                 g += sub * p * (1. - p)
         return g
             
@@ -155,13 +171,22 @@ class Tree(object):
         
         
 if __name__ == '__main__':
+    """
     train = [[1, 1], [2, 2], [-1, -1], [-2, -2]]
     label = [1, 1, -1, -1]
     test = [[3, 3], [-3, -3]]
-
+    """
+    
+    train = [[1, 1], [1, -1], [-1, 1], [-1, -1], [0.1, 0.1], [0.1, -0.1], [-0.1, 0.1], [-0.1, -0.1]]
+    label = [1, -1, -1, 1, 1, -1, -1, 1]
+    test = [[0.5, 1], [-0.5, -0.5], [0.3, -0.2], [-0.1, 0.9]]
+    
     model = DecisionTree()
 
     model.fit(train, label)
 
+    print "predict train"
     print model.predict(train)
+
+    print "predict test"
     print model.predict(test)
