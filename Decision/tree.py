@@ -1,40 +1,50 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import collections
+from extreme import StackedELMAutoEncoder
+        
+##########################################################
+##  Decision Tree
+##########################################################
 
 class DecisionTree(object):
-    def __init__(self, seed=123):
-        print "init"
-        self.dim = 100
+    def __init__(self, define_range=[0., 1.], num_function=10,
+                 condition='gini', seed=123):
+        #print "Initialize decision tree"
+        self.define_range = define_range
+        self.num_function = num_function
+        self.condition = condition
         self.np_rng = np.random.RandomState(seed)
 
-    def generate_threshold(self, data, size=10):
+    def generate_threshold(self, data):
+        #print "Generate ", size, " divide functions"
         def threshold(selected_dim, theta):
             def function(input):
                 #print "thre:", "selected_dim", selected_dim,"theta", theta
                 return input[selected_dim] - theta
             return function
 
-        #numpy_data = np.array(data)
-        for i in xrange(size):
-            """
+        numpy_data = np.array(data)
+        for i in xrange(self.num_function):
+            
             selected_dim = self.np_rng.randint(self.dim)
             selected_row = numpy_data.T[selected_dim]
             min_row = selected_row.min()
             max_row = selected_row.max()
             theta = self.np_rng.rand() * (max_row - min_row) + min_row
-            print "gen:", "selected_dim", selected_dim,"theta", theta
+            #print "gen:", "selected_dim", selected_dim,"theta", theta
             """
             selected_dim = self.np_rng.randint(self.dim)
             theta = self.np_rng.rand()
-            print "gen:", "selected_dim", selected_dim,"theta", theta
+            """
+            #print "gen:", "selected_dim", selected_dim,"theta", theta
             yield threshold(selected_dim, theta)
 
     def normalize_input(self, input):
-        # input normalization
+        #print "Normalize input"
         input = np.array(input)
-        min_input = input.min()
-        max_input = input.max()
+        min_input = min(input.min(), self.define_range[0])
+        max_input = max(input.max(), self.define_range[1])
         if max_input == min_input:
             return input.tolist()
         data = 1. * (input - min_input)
@@ -42,7 +52,7 @@ class DecisionTree(object):
         return data.tolist()
         
     def normalize_signal(self, signal):
-        # signal normalization
+        #print "Normalize signal"
         label_index, label_type = [], []
         for s in signal:
             if not s in label_type:
@@ -52,14 +62,14 @@ class DecisionTree(object):
         return label_index
         
     def fit(self, input, signal, d_limit=None):
-        # fit
+        #print "Fit"
         data = self.normalize_input(input)
         label = self.normalize_signal(signal)
         self.dim = len(data[0])
         self.tree = Tree(data, label, self.generate_threshold, d_limit)
 
     def predict(self, input):
-        # predict
+        #print "Predict"
         data = self.normalize_input(input)
         predict_signal = []
         for d in data:
@@ -67,7 +77,7 @@ class DecisionTree(object):
         return predict_signal
 
     def score(self, input, signal):
-        # score
+        #print "score"
         count = 0
         length = len(signal)
         data = self.normalize_input(input)
@@ -76,13 +86,76 @@ class DecisionTree(object):
             if predict_signal == signal[i]:
                 count += 1
         return count * 1.0 / length
+
+    
+##########################################################
+##  ExtremeDecision Tree
+##########################################################
+
+class ExtremeDecisionTree(DecisionTree):
+    def __init__(self, elm_hidden=None, elm_coef=None, define_range=[0., 1.],
+                 num_function=10, condition='gini', seed=123):
+        DecisionTree.__init__(self, define_range, num_function, condition, seed)
+        self.elm_hidden = elm_hidden
+        self.elm_coef = elm_coef
         
+    def generate_threshold(self, data):
+        #print "Generate ", size, " divide functions"
+        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef)
+        selmae.fit(data)
+        def elm_threshold(selected_dim, theta, n_hidden, coef):
+            def function(input):
+                #print "thre:", "selected_dim", selected_dim,"theta", theta
+                """
+                selmae = StackedELMAutoEncoder(n_hidden=n_hidden, coef=coef)
+                selmae.fit(data)
+                input = selmae.extraction(input)
+                print input
+                """
+                input = selmae.extraction(input)
+                return input[selected_dim] - theta
+            return function
+
+        numpy_data = np.array(selmae.extraction(data))
+        for i in xrange(self.num_function):
+            
+            selected_dim = self.np_rng.randint(self.elm_hidden[-1])
+            selected_row = numpy_data.T[selected_dim]
+            min_row = selected_row.min()
+            max_row = selected_row.max()
+            theta = self.np_rng.rand() * (max_row - min_row) + min_row
+            #print "gen:", "selected_dim", selected_dim,"theta", theta
+            """
+            selected_dim = self.np_rng.randint(self.elm_hidden[-1])
+            theta = self.np_rng.rand()
+            """
+            #print "gen:", "selected_dim", selected_dim,"theta", theta
+            yield elm_threshold(selected_dim, theta, self.elm_hidden, self.elm_coef)
+            
+
+    """ 
+    def normalize_input(self, input):
+    
+    def normalize_signal(self, signal):
+    
+    def fit(self, input, signal, d_limit=None):
+    
+    def predict(self, input):
+    
+    def score(self, input, signal):
+    
+    """
+    
+##########################################################
+##  Tree
+##########################################################
 
 class Tree(object):
-    def __init__(self, data, label, gen_threshold=None, d_limit=None, depth=0):
+    def __init__(self, data, label, gen_threshold=None, d_limit=None, depth=0, condition='gini'):
         if gen_threshold is None:
             Exception("Error: Threshold generator is not defined.")
 
+        self.condition = condition
         #print "label", label
         if len(set(label)) == 1:
             # terminate
@@ -105,7 +178,7 @@ class Tree(object):
 
                 # divide
                 l_data, l_label, r_data, r_label = self.divide(data, label, self.function)
-                print "len", len(l_data), len(r_data)
+                #print "len", len(l_data), len(r_data)
             self.l_tree = Tree(l_data, l_label, gen_threshold, d_limit, depth+1)
             self.r_tree = Tree(r_data, r_label, gen_threshold, d_limit, depth+1)
 
@@ -116,14 +189,14 @@ class Tree(object):
             index = (function(d) > 0)
             lr_data[index].append(d)
             lr_label[index].append(label[i])
-            print lr_label, index, label, i
+            #print lr_label, index, label, i
             
         l_data, r_data = lr_data
         l_label, r_label = lr_label
         return l_data, l_label, r_data, r_label
 
-    def opt_threshold(self, data, label, thresholds, condition='gini'):
-        cost = self.gini if condition == 'gini' else self.entropy
+    def opt_threshold(self, data, label, thresholds):
+        cost = self.gini if self.condition == 'gini' else self.entropy
         c_array = []
         for t in thresholds:
             l_data, l_label, r_data, r_label = self.divide(data, label, t)
@@ -141,7 +214,7 @@ class Tree(object):
             for c in counter:
                 p = 1. * c[1] / sub_size
                 sub = (1. * sub_size / set_size)
-                print "sub", sub * p * (1. - p) 
+                #print "sub", sub * p * (1. - p) 
                 g += sub * p * (1. - p)
         return g
             
@@ -181,7 +254,8 @@ if __name__ == '__main__':
     label = [1, -1, -1, 1, 1, -1, -1, 1]
     test = [[0.5, 1], [-0.5, -0.5], [0.3, -0.2], [-0.1, 0.9]]
     
-    model = DecisionTree()
+    model = ExtremeDecisionTree(elm_hidden=[3,4,5,6], elm_coef=[1000., 1000., 1000., 1000.])
+    #model = DecisionTree()
 
     model.fit(train, label)
 
