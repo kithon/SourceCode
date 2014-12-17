@@ -1,7 +1,6 @@
 # coding: utf-8
 import os
 import gzip
-import pylab
 import cPickle
 import numpy as np
 from sklearn.tree import export_graphviz
@@ -9,7 +8,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import LabelBinarizer
 
 def load_mnist():
-    f = gzip.open('mnist.pkl.gz', 'rb')
+    f = gzip.open('../Dataset/mnist.pkl.gz', 'rb')
     train_set, valid_set, test_set = cPickle.load(f)
     f.close()
     return train_set, valid_set, test_set
@@ -25,9 +24,9 @@ def mnist_dec():
     #test_target = LabelBinarizer().fit_transform(test_target)
     
     # size
-    train_size = 500 # max 50000
-    valid_size = 100 # max 10000
-    test_size = 100 # max 10000
+    train_size = 50000 # max 50000
+    valid_size = 10000 # max 10000
+    test_size = 10000 # max 10000
     train_data, train_target = train_data[:train_size], train_target[:train_size]
     test_data, test_target = test_data[:test_size], test_target[:test_size]
     valid_data, valid_target = valid_data[:valid_size], valid_target[:valid_size]
