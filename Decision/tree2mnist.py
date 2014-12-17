@@ -53,5 +53,5 @@ def mnist_mlelm(n_hidden=[1000]):
 
 
 if __name__ == "__main__":
-    mnist_mlelm([700, 700, 1500])
+    mnist_mlelm([700, 700, 15000])
     #mnist_mlelm([700, 700, 15000])
