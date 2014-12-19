@@ -121,22 +121,22 @@ class MLELMClassifier(object):
 
 
 ##########################################################
-##  Stacked Extreme Learning Machine AutoEncoder
+##  stacked extreme learning machine autoencoder
 ##########################################################
    
 class StackedELMAutoEncoder(object):
     """
-    Stacked Extreme Learning Machine Auto Encoder :
+    stacked extreme learning machine auto encoder :
         __init__ :
-            activation : Layer's activation
-            n_hidden : Hidden Layer's lists number of neuron
-            coef : coefficient for Layer's ridge redression
-            seed : seed for np.random.RandomState
+            activation : layer's activation
+            n_hidden : hidden layer's lists number of neuron
+            coef : coefficient for layer's ridge redression
+            seed : seed for np.random.randomstate
             domain : domain for initial value of weight and bias
     """
     
     def __init__(self, activation=sigmoid,
-                 n_hidden=None, coef=None,):
+                 n_hidden=None, coef=None, visualize=False):
         # initialize size of neuron
         if n_hidden is None:
             raise Exception("n_hidden is undefined")
@@ -145,22 +145,26 @@ class StackedELMAutoEncoder(object):
             coef = [10000.] * len(n_hidden)
         self.coef = coef
         self.activation = activation
+        self.visualize = visualize
 
         # initialize auto_encoder
         auto_encoders = []
         for i, num in enumerate(n_hidden):
             ae = ELMAutoEncoder(activation=activation,
-                                n_hidden=num, coef=coef[i])
+                                n_hidden=num, coef=coef[i],
+                                visualize=visualize)
             auto_encoders.append(ae)
         self.auto_encoders = auto_encoders
 
     def fit(self, input):
-        #print "stacked ae fit"
+        if self.visualize:
+            print "stacked ae fit"
         data = input
         betas = []
         for i, ae in enumerate(self.auto_encoders):
             # fit auto_encoder
-            #print " ", i,"ae fit"
+            if self.visualize:
+                print " ", i,"ae fit"
             ae.fit(data)
 
             # get beta
@@ -202,12 +206,13 @@ class ELMAutoEncoder(object):
     """
 
     def __init__(self, activation=sigmoid,
-                 n_hidden=50, coef=0.,  seed=123, domain=[-1., 1.]):
+                 n_hidden=50, coef=0.,  seed=123, domain=[-1., 1.], visualize=False):
         self.activation = activation
         self.n_hidden = n_hidden
         self.coef = coef
         self.np_rng = np.random.RandomState(seed)
         self.domain = domain
+        self.visualize = visualize
         
     def get_weight(self):
         return self.weight
@@ -259,7 +264,8 @@ class ELMAutoEncoder(object):
                            [self.n_input, self.n_hidden, self.n_output],
                            self.weight,
                            self.bias,
-                           self.coef)
+                           self.coef,
+                           self.visualize)
 
         # fit layer
         self.layer.fit(input, input)
@@ -439,7 +445,7 @@ class Layer(object):
             b : bias from input to hidden layer
             beta : beta from hidden to output layer
     """
-    def __init__(self, activation, size, w, b, c):
+    def __init__(self, activation, size, w, b, c, visualize):
         self.activation = activation
         self.n_input, self.n_hidden, self.n_output = size
         self.c = c
@@ -447,6 +453,7 @@ class Layer(object):
         self.b = b
         self.beta = np.zeros([self.n_hidden,
                               self.n_output])
+        self.visualize = visualize
 
     def get_beta(self):
         return self.beta
@@ -466,30 +473,29 @@ class Layer(object):
         # get activation of hidden layer
         H = []
         for i, d in enumerate(input):
-            """
-            sys.stdout.write("\r    input %d" % (i+1))
-            sys.stdout.flush()
-            """
+            if self.visualize:
+                sys.stdout.write("\r    input %d" % (i+1))
+                sys.stdout.flush()
             H.append(self.get_i2h(d))
-        #print " done."
+        if self.visualize:
+            print " done."
 
         # coefficient of regularization
-        """
-        sys.stdout.write("\r    coefficient")
-        sys.stdout.flush()
-        """
+        if self.visualize:
+            sys.stdout.write("\r    coefficient")
+            sys.stdout.flush()
         np_id = np.identity(min(np.array(H).shape))
         if self.c == 0:
             coefficient = 0
         else:
             coefficient = 1. / self.c
-        #print " done."
+        if self.visualize:
+            print " done."
 
         # pseudo inverse
-        """
-        sys.stdout.write("\r    pseudo inverse")
-        sys.stdout.flush()
-        """
+        if self.visualize:
+            sys.stdout.write("\r    pseudo inverse")
+            sys.stdout.flush()
         H = np.array(H)
         regular = coefficient * np_id
         if H.shape[0] < H.shape[1]:
@@ -498,15 +504,16 @@ class Layer(object):
         else:
             Hp = np.linalg.inv(np.dot(H.T, H) + regular)
             Hp = np.dot(Hp, H.T)
-        #print " done."
+        if self.visualize:
+            print " done."
             
         # set beta
-        """
-        sys.stdout.write("\r    set beta")
-        sys.stdout.flush()
-        """
+        if self.visualize:
+            sys.stdout.write("\r    set beta")
+            sys.stdout.flush()
+        
         self.beta = np.dot(Hp, np.array(signal))
-        #print " done."
+        if self.visualize: print " done."
 
 if __name__ == "__main__":
     
