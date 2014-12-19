@@ -87,6 +87,12 @@ class DecisionTree(object):
                 count += 1
         return count * 1.0 / length
 
+    def info(self):
+        print "Information"
+        print "root node",
+        depth_array = self.tree.info()
+        print "depth", depth_array
+        print "max depth", max(depth_array)
     
 ##########################################################
 ##  ExtremeDecision Tree
@@ -94,14 +100,15 @@ class DecisionTree(object):
 
 class ExtremeDecisionTree(DecisionTree):
     def __init__(self, elm_hidden=None, elm_coef=None, define_range=[0., 1.],
-                 num_function=10, condition='gini', seed=123):
+                 num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, define_range, num_function, condition, seed)
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
+        self.visualize = visualize
         
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
-        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef)
+        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=self.visualize)
         selmae.fit(data)
         def elm_threshold(selected_dim, theta, n_hidden, coef):
             def function(input):
@@ -155,6 +162,7 @@ class Tree(object):
         if gen_threshold is None:
             Exception("Error: Threshold generator is not defined.")
 
+        self.depth = depth
         self.condition = condition
         #print "label", label
         if len(set(label)) == 1:
@@ -241,7 +249,17 @@ class Tree(object):
             return self.r_tree.predict(data)
         else:
             return self.l_tree.predict(data)
-        
+
+    def info(self, depth=[]):
+        print "depth:", self.depth,
+        if self.terminal:
+            print "terminal."
+            return [self.depth]
+        print "left_node", 
+        depth = depth + self.l_tree.info()
+        print "right_node",
+        depth = depth + self.r_tree.info()
+        return depth
         
 if __name__ == '__main__':
     """
@@ -264,3 +282,5 @@ if __name__ == '__main__':
 
     print "predict test"
     print model.predict(test)
+
+    model.info()
