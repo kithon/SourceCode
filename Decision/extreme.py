@@ -27,33 +27,41 @@ class MLELMClassifier(object):
             sae_coef : coefficient for Stacked ELM Autoencoder's ridge redression
             fine_coef : coefficient for fine tune
     """
-    def __init__(self, activation=sigmoid, n_hidden=None, sae_coef=None, fine_coef=1000.):
+    ########################### have to make adaptive coef in fine_tune #################################
+    def __init__(self, activation=sigmoid, n_hidden=None, sae_coef=None, fine_coef=1000., visualize=False):
         self.fine_coef = fine_coef
-        self.sae = StackedELMAutoEncoder(activation, n_hidden, sae_coef)
+        self.visualize = visualize
+        self.sae = StackedELMAutoEncoder(activation, n_hidden, sae_coef, visualize)
         
     def fine_tune(self, teacher):
-        print "fine_tune"
+        if self.visualize:
+            print "fine_tune"
         # get data for fine_tune
-        sys.stdout.write("\r  data for fine_tune")
-        sys.stdout.flush()
+        if self.visualize:
+            sys.stdout.write("\r  data for fine_tune")
+            sys.stdout.flush()
         H = np.array(self.sae.data4fine)
         # data = self.activation(self.data4fine)
         signal = self.signal
-        print " done."
+        if self.visualize:
+            print " done."
         
         # coefficient of regularization for fine_tune
-        sys.stdout.write("\r  coefficient")
-        sys.stdout.flush()
+        if self.visualize:
+            sys.stdout.write("\r  coefficient")
+            sys.stdout.flush()
         np_id = np.identity(min(H.shape))
         if self.fine_coef == 0:
             coefficient = 0
         else:
             coefficient = 1. / self.fine_coef
-        print " done."
+        if self.visualize:
+            print " done."
         
         # pseudo inverse
-        sys.stdout.write("\r  pseudo inverse")
-        sys.stdout.flush()
+        if self.visualize:
+            sys.stdout.write("\r  pseudo inverse")
+            sys.stdout.flush()
         regular = coefficient * np_id
         if H.shape[0] < H.shape[1]:
             Hp = np.linalg.inv(np.dot(H, H.T) + regular)
@@ -61,14 +69,17 @@ class MLELMClassifier(object):
         else:
             Hp = np.linalg.inv(np.dot(H.T, H) + regular)
             Hp = np.dot(Hp, H.T)
-        print " done."
+        if self.visualize:
+            print " done."
 
         # set beta for fine_tune
-        sys.stdout.write("\r  set beta")
-        sys.stdout.flush()
+        if self.visualize:
+            sys.stdout.write("\r  set beta")
+            sys.stdout.flush()
         beta = np.dot(Hp, np.array(signal))
         self.fine_beta = beta
-        print " done."
+        if self.visualize:
+            print " done."
         
 
     def fine_extraction(self, data):
@@ -140,9 +151,9 @@ class StackedELMAutoEncoder(object):
         # initialize size of neuron
         if n_hidden is None:
             raise Exception("n_hidden is undefined")
-        self.n_hidden = n_hidden
         if coef is None:
-            coef = [10000.] * len(n_hidden)
+            coef = [None] * len(n_hidden)
+        self.n_hidden = n_hidden
         self.coef = coef
         self.activation = activation
         self.visualize = visualize
@@ -206,7 +217,7 @@ class ELMAutoEncoder(object):
     """
 
     def __init__(self, activation=sigmoid,
-                 n_hidden=50, coef=0.,  seed=123, domain=[-1., 1.], visualize=False):
+                 n_hidden=50, coef=None,  seed=123, domain=[-1., 1.], visualize=False):
         self.activation = activation
         self.n_hidden = n_hidden
         self.coef = coef
@@ -313,7 +324,7 @@ class ELMClassifier(object):
     """
 
     def __init__(self, activation=sigmoid, vector='orthogonal',
-                 n_hidden=50, coef=0., seed=123, domain=[-1., 1.]):
+                 n_hidden=50, coef=None, seed=123, domain=[-1., 1.]):
         self.activation = activation
         self.vector = vector
         self.coef = coef
@@ -469,7 +480,7 @@ class Layer(object):
         output = self.get_h2o(hidden) # from hidden to output
         return output
     
-    def fit(self, input, signal):
+    def fit(self, input, signal, alpha=0.0001):
         # get activation of hidden layer
         H = []
         for i, d in enumerate(input):
@@ -484,11 +495,30 @@ class Layer(object):
         if self.visualize:
             sys.stdout.write("\r    coefficient")
             sys.stdout.flush()
+        H = np.array(H)
         np_id = np.identity(min(np.array(H).shape))
-        if self.c == 0:
+        if H.shape[0] < H.shape[1]:
+            Sigma = np.dot(H, H.T)
+        else:
+            Sigma = np.dot(H.T, H)
+        if self.c is None:
+            """
+            print "Sigma"
+            print Sigma
+            print "diag"
+            print np.diag(Sigma)
+            coefficient = alpha * np.diag(Sigma).sum() / Sigma.shape[0]
+            print "coefficient", coefficient
+            regular = coefficient * np_id
+            """
+            regular = alpha * np.diag(np.diag(Sigma)) / Sigma.shape[0]
+        elif self.c == 0:
             coefficient = 0
+            regular = coefficient * np_id
         else:
             coefficient = 1. / self.c
+            regular = coefficient * np_id
+            
         if self.visualize:
             print " done."
 
@@ -496,13 +526,11 @@ class Layer(object):
         if self.visualize:
             sys.stdout.write("\r    pseudo inverse")
             sys.stdout.flush()
-        H = np.array(H)
-        regular = coefficient * np_id
+            
+        Hp = np.linalg.inv(Sigma + regular)
         if H.shape[0] < H.shape[1]:
-            Hp = np.linalg.inv(np.dot(H, H.T) + regular)
             Hp = np.dot(H.T, Hp)
         else:
-            Hp = np.linalg.inv(np.dot(H.T, H) + regular)
             Hp = np.dot(Hp, H.T)
         if self.visualize:
             print " done."
@@ -513,7 +541,8 @@ class Layer(object):
             sys.stdout.flush()
         
         self.beta = np.dot(Hp, np.array(signal))
-        if self.visualize: print " done."
+        if self.visualize:
+            print " done."
 
 if __name__ == "__main__":
     
@@ -521,7 +550,7 @@ if __name__ == "__main__":
     label = [1, 1, -1, -1]
     test = [[3, 3], [-3, -3]]
 
-    model = MLELMClassifier(n_hidden=[4,8,5])
+    model = MLELMClassifier(n_hidden=[4,8,5])#, sae_coef=[1000., 1000., 1000.])
 
     model.fit(train, label)
 
