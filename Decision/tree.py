@@ -251,13 +251,13 @@ class Tree(object):
             return self.l_tree.predict(data)
 
     def info(self, depth=[]):
-        print "depth:", self.depth,
+        #print "depth:", self.depth,
         if self.terminal:
-            print "terminal."
+            #print "terminal."
             return [self.depth]
-        print "left_node", 
+        #print "left_node", 
         depth = depth + self.l_tree.info()
-        print "right_node",
+        #print "right_node",
         depth = depth + self.r_tree.info()
         return depth
         
