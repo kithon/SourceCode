@@ -187,6 +187,7 @@ class Tree(object):
                 # divide
                 l_data, l_label, r_data, r_label = self.divide(data, label, self.function)
                 #print "len", len(l_data), len(r_data)
+            #print self.depth, ":[", len(l_data), len(r_data), "]"
             self.l_tree = Tree(l_data, l_label, gen_threshold, d_limit, depth+1)
             self.r_tree = Tree(r_data, r_label, gen_threshold, d_limit, depth+1)
 
@@ -201,6 +202,7 @@ class Tree(object):
             
         l_data, r_data = lr_data
         l_label, r_label = lr_label
+        #print self.depth, len(l_data), len(r_data)
         return l_data, l_label, r_data, r_label
 
     def opt_threshold(self, data, label, thresholds):
