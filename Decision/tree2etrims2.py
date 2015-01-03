@@ -16,6 +16,52 @@ def load_etrims(is08=True, size=6, shuffle=True, visualize=True):
     im_name = 'images/'
     et_name = '08_etrims-ds/' if is08 else '04_etrims-ds/'
     #print an_list, im_list
+
+    
+    # annotations part
+    path = root_path + an_name + et_name
+    dir_list = os.listdir(path)
+    mat_signal = []
+
+    print "annotations..."
+    for file_name in dir_list:
+        print file_name
+        image_path = path + file_name
+        image = Image.open(image_path)
+
+        # get width and height
+        w, h = image.size
+        image_signal = []
+        for y in xrange(h):
+            row = []
+            for x in xrange(w):
+                row.append(image.getpixel((x, y)))
+            image_signal.append(row)
+        mat_signal.append(image_signal)
+
+        
+    # images part
+    path = root_path + im_name + et_name
+    dir_list = os.listdir(path)
+    mat_data = []
+    print "images..."
+    for file_name in dir_list:
+        print file_name
+        # list of cropped data
+        image_path = path + file_name
+        image = Image.open(image_path)
+
+        # get width and height
+        w, h = image.size
+        image_data = []
+        for y in xrange(h):
+            row = []
+            for x in xrange(w):
+                row.append(list(image.getpixel((x,y))))
+            image_data.append(row)
+        mat_data.append(image_data)
+        
+
         
     # train index
     train_index = []
@@ -32,64 +78,70 @@ def load_etrims(is08=True, size=6, shuffle=True, visualize=True):
     else:
         # unshuffle train index
         train_index = range(TRAIN_SIZE)
-    
-    # path
-    an_path = root_path + an_name + et_name
-    im_path = root_path + im_name + et_name
-    dir_list = os.listdir(an_path)
+
+    # divide train and test
+    test_or_train = [[], []]
     train_data, train_signal, test_data, test_signal = [],[],[],[]
-    signal_set = [test_signal, train_signal]
-    data_set   = [test_data,   train_data]
-        
-    print "image datas and annotations..."
-    for i, dis in enumerate(dir_list):
-        file_name = dis.split(".")[0]
-        #print file_name
-        annot_path = an_path + file_name + ".png"
-        annotation = Image.open(annot_path)
-        image_path = im_path + file_name + ".jpg"
-        image = Image.open(image_path)
+    for iteration in xrange(DATA_SIZE):
+        signal_w_h = mat_signal[iteration]
+        data_w_h = mat_data[iteration]
+        width = len(signal_w_h) - 1
+        height = len(signal_w_h[0]) - 1
 
-        # get width, height and index
-        w, h = image.size
-        index = i in train_index
+        signal_set = [test_signal, train_signal]
+        data_set   = [test_data,   train_data]
+        index = iteration in train_index
 
-        """
-        ###### debug ####################################################
-        index = True if i == 0 else False
-        """
+        # information
+        test_or_train[index].append(iteration)
 
-        for t in xrange(w * h):
-            x, y = t % w, t / w
-            
-            # annotation
-            signal_set[index].append(annotation.getpixel((x,y)))
-            
-            # data
-            crop_data = []
-            crop = image.crop([x-size, y-size, x+size, y+size]).getdata()
-            for c in crop:
-                # convert RGB to list
-                crop_data += list(c)
-            data_set[index].append(crop_data)
-
-            # visualize
-            if visualize and t % 500 == 0:
-                sys.stdout.write("\r%s %.1f%%" % (file_name, (100.*(y*w+x)/(w*h))))
-                sys.stdout.flush()
-
-        # done
+        # visualize
         if visualize:
-            sys.stdout.write("\r")
+            sys.stdout.write("\r %dth data train:%d test:%d labeling %.1f%%" % (iteration, len(test_or_train[1]), len(test_or_train[0]), (100.*iteration/DATA_SIZE)))
             sys.stdout.flush()
-            print file_name,  "done                  "
 
-        """
-        ###### debug #####################################################
-        if i == 1:
-            break
-        """
+        for x,row in enumerate(signal_w_h):    
+            for y,element in enumerate(row):
+                #print x,y
+                # signal append
+                signal = element
+                signal_set[index].append(signal)
 
+                # data append
+                x1, x2 = max(0, x-size), min(width, x+(size+1))
+                y1, y2 = max(0, y-size), min(height, y+(size+1))
+                crop = data_w_h[x1:x2]
+
+                temp = []
+                for i in xrange(len(crop)):
+                    temp.append(crop[i][y1:y2])
+                crop = temp
+
+                data = []
+                for i in xrange(2*size+1):
+                    row = []
+                    for j in xrange(2*size+1):
+                        row.append([0,0,0])
+                    data.append(row)                
+                
+                data_x1, data_y1 = x1-(x-size), y1-(y-size)
+                data_x2 = data_x1 + x2 - x1
+                data_y2 = data_y1 + y2 - y1
+                for i in xrange(data_x1, data_x2):
+                    for j in xrange(data_y1, data_y2):
+                        if iteration == 1:
+                            print i,j,len(crop),len(crop[0]), data_x1, data_x2, data_y1, data_y2, x1, x2, y1, y2
+                        data[i][j] = crop[i-data_x1][j-data_y1]
+
+                #print data, len(data), len(data[0])
+
+                data = [flatten for inner in data for flatten in inner]
+                data = [flatten for inner in data for flatten in inner]
+                #print "one", data
+                data_set[index].append(data)
+
+    print " done."
+    print "[test, train] =", test_or_train
     return train_data, train_signal, test_data, test_signal
 
 
