@@ -122,10 +122,6 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6):
     score = edt.score(test_data, test_signal)
     print_time('score is %f' % score)
 
-    print_time('test_ExtremeDecisionTree')
-    score = edt.score(test_data, test_signal)
-    print_time('score is %f' % score)
-
     print_time('ExtremeDecisionTree info')
     edt.info()
 
