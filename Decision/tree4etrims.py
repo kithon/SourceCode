@@ -138,7 +138,7 @@ class Tree(object):
                 # divide
                 l_data, l_label, r_data, r_label = self.divide(data, self.function)
                 #print "len", len(l_data), len(r_data)
-            print self.depth, ":[", len(l_data), len(r_data), "]"
+            #print self.depth, ":[", len(l_data), len(r_data), "]"
             self.l_tree = Tree(l_data, self.picture, gen_threshold, d_limit, depth+1)
             self.r_tree = Tree(r_data, self.picture, gen_threshold, d_limit, depth+1)
 
@@ -363,17 +363,17 @@ def load_etrims(is08=True, size=6, shuffle=True, visualize=True):
     return train_set, test_set
 
 
-def etrims_tree(n_hidden = [1000], coef = [1000.], size=6):
+def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
     print_time('load_etrims')
     train_set, test_set = load_etrims(size=size)
 
     num_function = 10 #100 ##########debug#####################
-    print_time('tree2etrims test size is %d' % size)
+    print_time('tree2etrims test size is %d d_limit is %d' % (size, d_limit))
 
     
     print_time('train_DecisionTree number of function is %d' % num_function)
     dt = DecisionTree(radius=size, num_function=num_function)
-    dt.fit(train_set)
+    dt.fit(train_set, d_limit=d_limit)
 
     print_time('test_DecisionTree')
     score = dt.score(test_set)
@@ -389,7 +389,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6):
 
     print_time('train_ExtremeDecisionTree elm_hidden is %d, num function is %d' % (elm_hidden[0], num_function))
     edt = ExtremeDecisionTree(radius=size, elm_hidden=elm_hidden, elm_coef=None, num_function=num_function)
-    edt.fit(train_set)
+    edt.fit(train_set, d_limit=d_limit)
 
     print_time('test_ExtremeDecisionTree')
     score = edt.score(test_set)
@@ -405,7 +405,11 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         size = 6
         print "############ warning: size is forcely", size, '#############'
+    elif len(sys.argv) == 2:
+        size = int(sys.argv[1])
+        etrims_tree(size=size)    
     else:
         size = int(sys.argv[1])
-    etrims_tree(size=size)
+        d_limit = int(sys.argv[2])
+        etrims_tree(size=size, d_limit=d_limit)
     
