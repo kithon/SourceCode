@@ -172,6 +172,7 @@ class StackedELMAutoEncoder(object):
             print "stacked ae fit"
         data = input
         betas = []
+        biases = []
         for i, ae in enumerate(self.auto_encoders):
             # fit auto_encoder
             if self.visualize:
@@ -180,6 +181,7 @@ class StackedELMAutoEncoder(object):
 
             # get beta
             beta = ae.get_beta()
+            bias = ae.get_bias()
             
             # part use activation and bias
             act = np.dot(data, beta.T) + ae.get_bias()
@@ -187,10 +189,13 @@ class StackedELMAutoEncoder(object):
 
             # append beta
             betas.append(beta)
+            biases.append(bias)
 
         # set betas and data for fine_tune
         self.betas = betas
         self.data4fine = data
+
+        return betas, biases
 
     def extraction(self, input):
         # extraction

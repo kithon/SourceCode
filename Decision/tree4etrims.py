@@ -7,7 +7,10 @@ import numpy as np
 import collections
 from PIL import Image
 from extreme import StackedELMAutoEncoder
-        
+
+def sigmoid(x):
+    return 1. / (1 + np.exp(-x))
+
 ##########################################################
 ##  Decision Tree (for etrims)
 ##########################################################
@@ -119,7 +122,7 @@ class Tree(object):
 
         elif not d_limit is None and d_limit <= depth:
             # forcely terminate
-            print "break"
+            #print "break"
             self.terminal = True
             self.label = collections.Counter(label).most_common()[0][0]
 
@@ -242,7 +245,7 @@ class ExtremeDecisionTree(DecisionTree):
         for temp in sample_index:
             i,x,y = temp
             sample.append(self.picture[i].cropData(x, y, self.radius))
-        selmae.fit(sample)
+        betas, biases = selmae.fit(sample)
         
         def elm_threshold(selected_dim, theta):
             def function(element):
@@ -250,10 +253,12 @@ class ExtremeDecisionTree(DecisionTree):
                 i, x, y = element
                 crop = self.picture[i].cropData(x, y, self.radius)
                 #print crop
-                input = selmae.extraction(crop)
+                for i, beta in enumerate(betas):
+                    bias = biases[i]
+                    crop = sigmoid(np.dot(crop, beta.T) + bias)        
                 #print input
                 #print selected_dim, theta
-                return input[selected_dim] - theta
+                return crop[selected_dim] - theta
             return function
 
         numpy_data = np.array(selmae.extraction(sample))
@@ -368,7 +373,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
     train_set, test_set = load_etrims(size=size)
 
     num_function = 10 #100 ##########debug#####################
-    print_time('tree2etrims test size is %d d_limit is %d' % (size, d_limit))
+    print_time('tree2etrims test size is %d' % (size))
 
     
     print_time('train_DecisionTree number of function is %d' % num_function)
@@ -381,7 +386,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
 
     print_time('DecisionTree info')
     dt.info()
-
+    
     #return ################################# debug ########################################
     
     
@@ -402,9 +407,11 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
 
 
 if __name__ == '__main__':
+    print sys.argv
     if len(sys.argv) == 1:
         size = 6
         print "############ warning: size is forcely", size, '#############'
+        etrims_tree(size=size)
     elif len(sys.argv) == 2:
         size = int(sys.argv[1])
         etrims_tree(size=size)    
