@@ -18,15 +18,13 @@ def sigmoid(x):
 class DecisionTree(object):
     def __init__(self, radius=None, num_function=10,
                  condition='gini', seed=123):
-        #print "Initialize decision tree"
-        # define_range = [0. 255.]
         if radius is None:
             Exception('Error: radius is None.')
         self.radius = radius
         self.num_function = num_function
         self.condition = condition
         self.np_rng = np.random.RandomState(seed)
-
+        
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
         def threshold(selected_dim, theta):
@@ -60,17 +58,43 @@ class DecisionTree(object):
                 
     def fit(self, picture, d_limit=None):
         #print "Fit"
-        self.picture = picture
+        # initialize input
         input = []
+        self.picture = picture
         for i,p in enumerate(picture):
             w,h = p.getSize()
             input += [[i,j,k] for j in range(w) for k in range(h)]
             #input += [[i,j,k] for j in range(w) for k in range(h)]
-        self.tree = Tree(input, self.picture, self.generate_threshold, d_limit)
 
+        # fitting with tree_list
+        tree_list = [Node(self.picture, input)]
+        for node in tree_list:
+            node.fit(self.generate_threshold, d_limit, 0, self.condition)
+            if not node.isTerminal():
+                # not terminal
+                node.setChildIndex(len(tree_list)) 
+                l_data, l_label, r_data, r_label  = node.divide()
+                # append l_node and r_node
+                tree_list.append(Node(self.picture, l_data))
+                tree_list.append(Node(self.picture, r_data))
+
+        # set self to tree_list
+        self.tree_list = tree_list
+        
     def predict(self, data):
         #print "Predict"
-        return self.tree.predict(data)
+        index = 0
+        count = 0
+        while True:
+            node = self.tree_list[index]
+            if node.isTerminal():
+                return node.predict(data)
+            index = node.predict(data)
+
+            # debug (bellow)
+            count += 1
+            if count > len(self.tree_list):
+                raise Exception('method predict in dt: while loop never ends')
 
     def score(self, picture):
         #print "score"
@@ -97,17 +121,17 @@ class DecisionTree(object):
 
         
 ##########################################################
-##  Tree (for etrims)
+##  Node (for etrims)
 ##########################################################
-    
-class Tree(object):
-    def __init__(self, data, picture, gen_threshold=None, d_limit=None, depth=0, condition='gini'):
-        if gen_threshold is None:
-            Exception("Error: Threshold generator is not defined.")
 
+class Node(object):
+    def __init__(self, data, picture):
+        self.data = data
+        self.picture = picture
+
+    def fit(self, gen_threshold, d_limit, depth, condition)
         self.depth = depth
         self.condition = condition
-        self.picture = picture
         #print "label", label
         label = []
         for temp in data:
@@ -139,13 +163,15 @@ class Tree(object):
                 #print "function"
 
                 # divide
-                l_data, l_label, r_data, r_label = self.divide(data, self.function)
+                l_data, l_label, r_data, r_label = self.divide()
                 #print "len", len(l_data), len(r_data)
             #print self.depth, ":[", len(l_data), len(r_data), "]"
-            self.l_tree = Tree(l_data, self.picture, gen_threshold, d_limit, depth+1)
-            self.r_tree = Tree(r_data, self.picture, gen_threshold, d_limit, depth+1)
 
-    def divide(self, data, function):
+    def divide(self, data=None, function=None):
+        if data is None:
+            data = self.data
+        if function is None:
+            function = self.function
         lr_data = [[], []]
         lr_label = [[], []]
         for i, element in enumerate(data):
@@ -200,6 +226,7 @@ class Tree(object):
                 e += sub * p * np.log2(p)
         return -1. * e
 
+    
     def predict(self, data):
         # check terminal
         if self.terminal:
@@ -207,10 +234,18 @@ class Tree(object):
 
         # check threshold
         if self.function(data) > 0:
-            return self.r_tree.predict(data)
+            return self.r_index
         else:
-            return self.l_tree.predict(data)
+            return self.l_index
 
+    def isTerminal(self):
+        return self.terminal
+
+    def setChildIndex(self, index):
+        # set child index
+        self.l_index = index
+        self.r_index = index+1
+        
     def info(self, depth=[]):
         #print "depth:", self.depth,
         if self.terminal:
@@ -221,7 +256,6 @@ class Tree(object):
         #print "right_node",
         depth = depth + self.r_tree.info()
         return depth
-
     
 
 ##########################################################
