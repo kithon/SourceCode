@@ -28,13 +28,13 @@ class DecisionTree(object):
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
         def threshold(selected_dim, theta):
-            def function(element):
+            def function(picture, element):
                 #print "selected_dim", selected_dim, "theta", theta
                 i, x, y = element
                 dx,dy,c = selected_dim
                 #print self.picture[i].getData(x+dx, y+dy)
                 #print theta
-                return self.picture[i].getData(x+dx, y+dy)[c] - theta
+                return picture[i].getData(x+dx, y+dy)[c] - theta
             return function
 
         for i in xrange(self.num_function):
@@ -67,16 +67,17 @@ class DecisionTree(object):
             #input += [[i,j,k] for j in range(w) for k in range(h)]
 
         # fitting with tree_list
-        tree_list = [Node(self.picture, input)]
+        tree_list = [Node(input, self.picture, 0)]
         for node in tree_list:
-            node.fit(self.generate_threshold, d_limit, 0, self.condition)
+            node.fit(self.generate_threshold, d_limit, self.condition)
             if not node.isTerminal():
                 # not terminal
                 node.setChildIndex(len(tree_list)) 
                 l_data, l_label, r_data, r_label  = node.divide()
                 # append l_node and r_node
-                tree_list.append(Node(self.picture, l_data))
-                tree_list.append(Node(self.picture, r_data))
+                depth = node.getDepth() + 1
+                tree_list.append(Node(l_data, self.picture, depth))
+                tree_list.append(Node(r_data, self.picture, depth))
 
         # set self to tree_list
         self.tree_list = tree_list
@@ -87,6 +88,7 @@ class DecisionTree(object):
         count = 0
         while True:
             node = self.tree_list[index]
+            node.setPicture(self.picture)
             if node.isTerminal():
                 return node.predict(data)
             index = node.predict(data)
@@ -107,7 +109,7 @@ class DecisionTree(object):
         length = len(input)
         for temp in input:
             i,x,y = temp
-            predict_signal = self.tree.predict(temp)
+            predict_signal = self.predict(temp)
             if predict_signal == self.picture[i].getSignal(x,y):
                 count += 1
         return count * 1.0 / length
@@ -115,9 +117,9 @@ class DecisionTree(object):
     def info(self):
         print "Information"
         print "root node",
-        depth_array = self.tree.info()
+        print "node size", len(self.tree_list)
         #print "depth", depth_array
-        print "max depth", max(depth_array)
+        print "max depth", self.tree_list[-1].getDepth()
 
         
 ##########################################################
@@ -125,16 +127,17 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    def __init__(self, data, picture):
+    def __init__(self, data, picture, depth):
         self.data = data
         self.picture = picture
-
-    def fit(self, gen_threshold, d_limit, depth, condition)
         self.depth = depth
+
+    def fit(self, gen_threshold, d_limit, condition):
         self.condition = condition
         #print "label", label
         label = []
-        for temp in data:
+        for temp in self.data:
+            #print temp
             i, x, y = temp
             label.append(self.picture[i].getSignal(x,y))
 
@@ -144,7 +147,7 @@ class Node(object):
             self.terminal = True
             self.label = label[0]
 
-        elif not d_limit is None and d_limit <= depth:
+        elif not d_limit is None and d_limit <= self.depth:
             # forcely terminate
             #print "break"
             self.terminal = True
@@ -156,9 +159,9 @@ class Node(object):
             l_data, r_data = [], []
             while len(l_data) == 0 or len(r_data) == 0:
                 #print "divide"
-                thresholds = [t for t in gen_threshold(data)]
+                thresholds = [t for t in gen_threshold(self.data)]
                 #print "opt"
-                self.function = self.opt_threshold(data, thresholds)
+                self.function = self.opt_threshold(self.data, thresholds)
 
                 #print "function"
 
@@ -176,7 +179,7 @@ class Node(object):
         lr_label = [[], []]
         for i, element in enumerate(data):
             #print element
-            index = (function(element) > 0)
+            index = (function(self.picture, element) > 0)
             lr_data[index].append(element)
             lr_label[index].append(self.picture[element[0]].getSignal(element[1], element[2]))
             #print lr_label, index, label, i
@@ -233,13 +236,19 @@ class Node(object):
             return self.label
 
         # check threshold
-        if self.function(data) > 0:
+        if self.function(self.picture, data) > 0:
             return self.r_index
         else:
             return self.l_index
 
     def isTerminal(self):
         return self.terminal
+    
+    def getDepth(self):
+        return self.depth    
+ 
+    def setPicture(self, picture):
+        self.picture = picture
 
     def setChildIndex(self, index):
         # set child index
@@ -282,10 +291,10 @@ class ExtremeDecisionTree(DecisionTree):
         betas, biases = selmae.fit(sample)
         
         def elm_threshold(selected_dim, theta):
-            def function(element):
+            def function(picture, element):
                 #print "thre:", "selected_dim", selected_dim,"theta", theta
                 i, x, y = element
-                crop = self.picture[i].cropData(x, y, self.radius)
+                crop = picture[i].cropData(x, y, self.radius)
                 #print crop
                 for i, beta in enumerate(betas):
                     bias = biases[i]
