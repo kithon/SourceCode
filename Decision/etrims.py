@@ -86,6 +86,7 @@ class DecisionTree(object):
                 tree_list.append(r_node)
                 task_list.append(l_node)
                 task_list.append(r_node)
+                print "func", task_list
 
         """# not use
         # count number of cpu
@@ -107,8 +108,12 @@ class DecisionTree(object):
 
             d += 1
 
+            print "multi", task_list
+
         # set self to tree_list
         self.tree_list = tree_list
+
+        print "multi2", task_list
         
     def predict(self, data):
         #print "Predict"
