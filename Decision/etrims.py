@@ -70,7 +70,6 @@ class DecisionTree(object):
 
         # fitting with tree_list
         tree_list = [Node(input, self.picture, 0)]
-        task_list = [tree_list[0]]
 
         def fit_process(node):
             node.fit(self.generate_threshold, d_limit, self.condition)
@@ -84,9 +83,7 @@ class DecisionTree(object):
                 r_node = Node(r_data, self.picture, depth)
                 tree_list.append(l_node)
                 tree_list.append(r_node)
-                task_list.append(l_node)
-                task_list.append(r_node)
-                print "func", task_list
+                print "func", tree_list
 
         """# not use
         # count number of cpu
@@ -95,11 +92,15 @@ class DecisionTree(object):
 
         # multi-processing
         d = 0
-        while len(task_list) > 0:
+        i_s = 0
+        i_e = len(tree_list)
+        while i_s < i_e:
             print "depth:",d
             jobs = []
-            while len(task_list) > 0:
-                jobs.append(Process(target=fit_process, args=(task_list.pop(0),)))
+
+            for i in xrange(i_s, i_e):
+                jobs.append(Process(target=fit_process, args=(tree_list[i],)))
+                
             for j in jobs:
                 j.start()
 
@@ -108,12 +109,17 @@ class DecisionTree(object):
 
             d += 1
 
-            print "multi", task_list
+            print "s", i_s
+            print "e", i_e
+            print "len1", len(tree_list)
+
+            i_s = i_e
+            i_e = len(tree_list)
 
         # set self to tree_list
         self.tree_list = tree_list
 
-        print "multi2", task_list
+        print "len2", len(tree_list) 
         
     def predict(self, data):
         #print "Predict"
