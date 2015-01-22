@@ -96,7 +96,7 @@ class DecisionTree(object):
         while len(task_list) > 0:
             jobs = []
             while len(task_list) > 0:
-                jobs.append(Process(target=fit_process, args(task_list.pop(0),)))
+                jobs.append(Process(target=fit_process, args=(task_list.pop(0),)))
             for j in jobs:
                 j.start()
 
