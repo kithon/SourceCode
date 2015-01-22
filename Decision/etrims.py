@@ -74,7 +74,7 @@ class DecisionTree(object):
 
         def fit_process(node):
             node.fit(self.generate_threshold, d_limit, self.condition)
-            if not node isTerminal():
+            if not node.isTerminal():
                 # not terminal
                 node.setChildIndex(len(tree_list)) 
                 l_data, l_label, r_data, r_label  = node.divide()
