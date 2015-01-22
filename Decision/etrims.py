@@ -7,7 +7,7 @@ import numpy as np
 import collections
 from PIL import Image
 import multiprocessing
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from extreme import StackedELMAutoEncoder
 
 def sigmoid(x):
@@ -71,7 +71,7 @@ class DecisionTree(object):
         # fitting with tree_list
         tree_list = [Node(input, self.picture, 0)]
 
-        def fit_process(node):
+        def fit_process(q, node):
             node.fit(self.generate_threshold, d_limit, self.condition)
             if not node.isTerminal():
                 # not terminal
@@ -83,7 +83,10 @@ class DecisionTree(object):
                 r_node = Node(r_data, self.picture, depth)
                 tree_list.append(l_node)
                 tree_list.append(r_node)
-                print "func", tree_list
+                q.put(l_node)
+                q.put(r_node)
+
+                print "size_func", q.qsize()
 
         """# not use
         # count number of cpu
@@ -92,14 +95,14 @@ class DecisionTree(object):
 
         # multi-processing
         d = 0
-        i_s = 0
-        i_e = len(tree_list)
-        while i_s < i_e:
+        q = Queue()
+        q.put(tree_list[0])
+        while not q.empty():
             print "depth:",d
             jobs = []
 
-            for i in xrange(i_s, i_e):
-                jobs.append(Process(target=fit_process, args=(tree_list[i],)))
+            while not q.empty():
+                jobs.append(Process(target=fit_process, args=(q, q.get(),)))
                 
             for j in jobs:
                 j.start()
@@ -109,17 +112,11 @@ class DecisionTree(object):
 
             d += 1
 
-            print "s", i_s
-            print "e", i_e
-            print "len1", len(tree_list)
-
-            i_s = i_e
-            i_e = len(tree_list)
+            print "size", q.qsize()
 
         # set self to tree_list
         self.tree_list = tree_list
 
-        print "len2", len(tree_list) 
         
     def predict(self, data):
         #print "Predict"
