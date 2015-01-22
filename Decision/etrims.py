@@ -93,7 +93,9 @@ class DecisionTree(object):
         """
 
         # multi-processing
+        d = 0
         while len(task_list) > 0:
+            print "depth:",d
             jobs = []
             while len(task_list) > 0:
                 jobs.append(Process(target=fit_process, args=(task_list.pop(0),)))
@@ -102,6 +104,8 @@ class DecisionTree(object):
 
             for j in jobs:
                 j.join()
+
+            d += 1
 
         # set self to tree_list
         self.tree_list = tree_list
