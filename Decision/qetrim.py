@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import time
 import random
 import datetime
 import numpy as np
@@ -68,41 +69,61 @@ class DecisionTree(object):
             input += [[i,j,k] for j in range(w) for k in range(h)]
             #input += [[i,j,k] for j in range(w) for k in range(h)]
 
+        
         # fitting with tree_list
-        tree_list = [Node(input, self.picture, 0)]
+        head = Node(input, 0)
+        q_tree_list = Queue()
+        q_tree_list.put(head)
 
-        def fit_process(q, node):
-            node.fit(self.generate_threshold, d_limit, self.condition)
+        def fit_process(q_tree, q, node):
+            print len(node.data)
+            node.fit(self.picture, self.generate_threshold, d_limit, self.condition)
             if not node.isTerminal():
                 # not terminal
-                node.setChildIndex(len(tree_list)) 
+                node.setChildIndex(q_tree.qsize()) 
                 l_data, l_label, r_data, r_label  = node.divide()
                 # append l_node and r_node
                 depth = node.getDepth() + 1
-                l_node = Node(l_data, self.picture, depth)
-                r_node = Node(r_data, self.picture, depth)
-                tree_list.append(l_node)
-                tree_list.append(r_node)
+                l_node = Node(l_data, depth)
+                r_node = Node(r_data, depth)
+                q_tree.put(l_node)
+                q_tree.put(r_node)
                 q.put(l_node)
                 q.put(r_node)
 
+                #os.system('kill %d' % os.getpid())
+                
+                """
+                command = 'kill %d' % os.getpid()
+                print command
+                os.system(command)
+
+                
+                print len(l_data), len(r_data)
                 print "size_func", q.qsize()
+
+                command = 'kill %d' & os.getpid()
+                print command
+                os.system(command)
+                """
 
         """# not use
         # count number of cpu
         core = multiprocessing.cpu_count()
         """
 
+        """
         # multi-processing
         d = 0
         q = Queue()
-        q.put(tree_list[0])
-        while not q.empty():
-            print "depth:",d
+        q.put(head)
+        while q.qsize() > 0:
+            print_time("depth:%d" % d)
             jobs = []
 
-            while not q.empty():
-                jobs.append(Process(target=fit_process, args=(q, q.get(),)))
+            while q.qsize() > 0:
+                #print "append", q.qsize()
+                jobs.append(Process(target=fit_process, args=(q_tree_list, q, q.get(),)))
                 
             for j in jobs:
                 j.start()
@@ -113,12 +134,52 @@ class DecisionTree(object):
             d += 1
 
             print "size", q.qsize()
-       
+        """
+        
 
+        #"""
+        # --------debug-----------
+        q = Queue()
+
+        print "path1:", q.empty(), "size:", q.qsize()
+        q.put(head)
+        print "path2:", q.empty(), "size:", q.qsize()
+
+        p = Process(target=fit_process, args=(q_tree_list, q, q.get()))
+
+        print "start"
+        p.start()
+
+        print "join"
+        p.join()
+        print "end"
+        """
+        while True:
+            print p.is_alive()
+            if not p.is_alive():
+                break
+            time.sleep(1)
+        """
+            
+        print "path3:", q.empty(), "size:", q.qsize()
+
+        # ---------debug---------
+        #"""
+
+        tree_list = []
+
+        print "q_tree_list:", q_tree_list.qsize()
+        while q_tree_list.qsize() > 0:
+            print "append", q_tree_list.qsize()
+            #node = q_tree_list.get()
+            node = q_tree_list.get(0)
+            print node
+            tree_list.append(node)
+        
         # set self to tree_list
         self.tree_list = tree_list
 
-        print "teas"
+        print "teas", len(tree_list)
         
     def predict(self, data):
         #print "Predict"
@@ -165,12 +226,12 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    def __init__(self, data, picture, depth):
+    def __init__(self, data, depth):
         self.data = data
-        self.picture = picture
         self.depth = depth
 
-    def fit(self, gen_threshold, d_limit, condition):
+    def fit(self, picture, gen_threshold, d_limit, condition):
+        self.picture = picture
         self.condition = condition
         #print "label", label
         label = []
