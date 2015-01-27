@@ -5,8 +5,11 @@ import random
 import datetime
 import numpy as np
 import collections
-from PIL import Image
+from PIL import Image, ImageFile
 from extreme import StackedELMAutoEncoder
+import multiprocessing
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
@@ -42,7 +45,7 @@ class DecisionTree(object):
         # fitting with tree_list
         tree_list = [self.getNode(input, 0)]
         for node in tree_list:
-            print "fit"
+            #print "fit"
             node.fit()
             if not node.isTerminal():
                 # not terminal
@@ -173,40 +176,79 @@ class Node(object):
             if minimum is None or temp < minimum:
                 index = i
                 minimum = temp
-        self.selected_dim, self.theta = thresholds[index]
+        self.setThreshold(thresholds[index])
 
     def divide(self, data=None, threshold=None):
         # set data
         if data is None:
             data = self.data
-
+        if not threshold is None:
+            self.setThreshold(threshold)
+            
         # divide data and label
         lr_data = [[], []]
         lr_label = [[], []]
-        for i, element in enumerate(data):
-            print element
-            index = (self.function(element, threshold) > 0)
-            lr_data[index].append(element)
-            lr_label[index].append(self.picture[element[0]].getSignal(element[1], element[2]))
-            #print lr_label, index, label, i
+
+        # ----- multiprocessing -----
+        #print "multiprocessing"
+        core = multiprocessing.cpu_count()
+
+        def divide_process(d, index, data_set):
+            values = map(self.function, data_set)
+            d.update({index:values})
+
+        sub_size = max(len(data) / core, 1)
+        sub_data = [data[i:i+sub_size] for i in range(0,len(data),sub_size)]
+        manager = multiprocessing.Manager()
+        dic = manager.dict()
+
+        jobs = []
+
+        for i,sub in enumerate(sub_data):
+            jobs.append(multiprocessing.Process(target=divide_process, args=(dic, i, sub)))
+
+        for j in jobs:
+            j.start()
+
+        for j in jobs:
+            j.join()
+
+        #print "done."
+        # ----- multiprocessing -----
+
+        i = 0
+        for values in dic.values():
+            for val in values:
+                index = (val > 0)
+                element = data[i]
+                #print element
+                lr_data[index].append(element)
+                lr_label[index].append(self.picture[element[0]].getSignal(element[1], element[2]))
+                #print lr_label, index, label, i
+                i += 1
 
         l_data, r_data = lr_data
         l_label, r_label = lr_label
         #print self.depth, len(l_data), len(r_data)
         return l_data, l_label, r_data, r_label
-        
-    def function(self, element, threshold=None):
-        # set threshold
-        if threshold is None:
-            selected_dim = self.selected_dim
-            theta = self.theta
-        else:
-            selected_dim, theta = threshold
 
+    def setThreshold(self, threshold):
+        self.selected_dim, self.theta = threshold        
+
+
+    def function(self, element):
+        # set threshold
+        #print element, self.selected_dim
         i,  x,  y = element
-        dx, dy, c = selected_dim
-        print element
-        return self.picture[i].getData(x+dx, y+dy)[c] - theta
+        dx, dy, c = self.selected_dim
+        #print [i, x+dx, y+dy, c],
+        #print self.picture[i].getData(x+dx, y+dy)[c]
+        try:
+            temp = self.picture[i].getData(x+dx, y+dy)[c]
+        except IOError:
+            #print "IOError"
+            temp = self.picture[i].getData(x+dx, y+dy)[c]
+        return temp - self.theta
 
     def gini(self, l_label, r_label):
         # get gini (minimize)
@@ -329,36 +371,17 @@ class ExtremeNode(Node):
         Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
 
-    def opt_threshold(self, data, thresholds):
-        cost = self.gini if self.condition == 'gini' else self.entropy
-        index = None
-        minimum = None
-        for i,threshold in enumerate(thresholds):
-            # threshold consits of (selected_dim, theta, betas, biases)
-            print "size of threshold:", len(threshold)
-            l_data, l_label, r_data, r_label = self.divide(data, threshold)
-            temp = cost(l_label, r_label)
-            if minimum is None or temp < minimum:
-                index = i
-                minimum = temp
-        self.selected_dim, self.theta, self.betas, self.biases = thresholds[index]
+    def setThreshold(self, threshold):
+        self.selected_dim, self.theta, self.betas, self.biases = threshold
         
-    def function(self, element, threshold=None):
-        # set threshold
-        if threshold is None:
-            selected_dim = self.selected_dim
-            theta = self.theta
-            betas = self.betas
-            biases = self.biases
-        else:
-            selected_dim, theta, betas, biases = threshold
-            
+    def function(self, element):
+        # set threshold            
         i,  x,  y = element
         crop = self.picture[i].cropData(x, y, self.radius)
-        for i, beta in enumerate(betas):
-            bias = biases[i]
+        for i, beta in enumerate(self.betas):
+            bias = self.biases[i]
             crop = sigmoid(np.dot(crop, beta.T) + bias)
-        return crop[selected_dim] - theta
+        return crop[self.selected_dim] - self.theta
     
 
     def save(self):
@@ -475,7 +498,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
     num_function = 10 #100 ##########debug#####################
     print_time('tree2etrims test size is %d' % (size))
 
-    """
+
     print_time('train_DecisionTree number of function is %d' % num_function)
     dt = DecisionTree(radius=size, num_function=num_function)
     dt.fit(train_set, d_limit=d_limit)
@@ -486,7 +509,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
 
     print_time('DecisionTree info')
     dt.info()
-    """
+    
     
     #return ################################# debug ########################################
     

@@ -97,15 +97,11 @@ class DecisionTree(object):
                 command = 'kill %d' % os.getpid()
                 print command
                 os.system(command)
-
+                """
                 
                 print len(l_data), len(r_data)
                 print "size_func", q.qsize()
 
-                command = 'kill %d' & os.getpid()
-                print command
-                os.system(command)
-                """
 
         """# not use
         # count number of cpu

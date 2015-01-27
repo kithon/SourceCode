@@ -1,15 +1,25 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import time
 import random
 import datetime
 import numpy as np
 import collections
 from PIL import Image
+import multiprocessing
+from multiprocessing import Process, Manager
 from extreme import StackedELMAutoEncoder
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
+
+def fit_process_out(dic, index, node):
+    print "fit_start"
+    node.fit()
+    print "fit_done"
+    dic.update({index:node.data})
+    print "fit_update"
 
 ##########################################################
 ##  Decision Tree (for etrims)
@@ -24,53 +34,143 @@ class DecisionTree(object):
         self.num_function = num_function
         self.condition = condition
         self.np_rng = np.random.RandomState(seed)
-
-    def getNode(self, data, depth):
-        return Node(data, self.picture, depth, self.generate_threshold, self.d_limit, self.condition)
-            
-    def fit(self, picture, d_limit=None):
-        #print "Fit"
-        # initialize input
-        input = []
-        self.picture = picture
-        self.d_limit = d_limit
-        for i,p in enumerate(picture):
-            w,h = p.getSize()
-            input += [[i,j,k] for j in range(w) for k in range(h)]
-            #input += [[i,j,k] for j in range(w) for k in range(h)]
-
-        # fitting with tree_list
-        tree_list = [self.getNode(input, 0)]
-        for node in tree_list:
-            print "fit"
-            node.fit()
-            if not node.isTerminal():
-                # not terminal
-                node.setChildIndex(len(tree_list)) 
-                l_data, l_label, r_data, r_label  = node.divide()
-                # append l_node and r_node
-                depth = node.getDepth() + 1
-                tree_list.append(self.getNode(l_data, depth))
-                tree_list.append(self.getNode(r_data, depth))
-
-        # set self to tree_list
-        self.tree_list = tree_list
-
+        
     def generate_threshold(self, data):
+        #print "Generate ", size, " divide functions"
+        def threshold(selected_dim, theta):
+            def function(picture, element):
+                #print "selected_dim", selected_dim, "theta", theta
+                i, x, y = element
+                dx,dy,c = selected_dim
+                #print self.picture[i].getData(x+dx, y+dy)
+                #print theta
+                return picture[i].getData(x+dx, y+dy)[c] - theta
+            return function
+
         for i in xrange(self.num_function):
             # default radius (-6 <= x,y <= 6), channel (0 <= c < 3)
             selected_dx = self.np_rng.randint(-1*self.radius, self.radius+1)
             selected_dy = self.np_rng.randint(-1*self.radius, self.radius+1)
             selected_c = self.np_rng.randint(3)
-            
+
             min_row = 0
             max_row = 255
             
             theta = self.np_rng.rand() * (max_row - min_row) + min_row
+
+            """
+            # all picture or some picture's element
+            
+            """
             
             selected_dim = [selected_dx, selected_dy, selected_c]
-            yield selected_dim, theta
+            yield threshold(selected_dim, theta)
+                
+    def fit(self, picture, d_limit=None):
+        #print "Fit"
+        # initialize input
+        input = []
+        self.picture = picture
+        for i,p in enumerate(picture):
+            w,h = p.getSize()
+            input += [[i,j,k] for j in range(w) for k in range(h)]
+            #input += [[i,j,k] for j in range(w) for k in range(h)]
 
+
+        
+        def fit_process(dic, index, node):
+            print "fit_start"
+            node.fit()
+            print "fit_done"
+            dic.update({index:node})
+            print "fit_update"
+    
+
+        """
+        def fit_process(q_tree, q, node):
+            print len(node.data)
+            node.fit(self.picture, self.generate_threshold, d_limit, self.condition)
+            if not node.isTerminal():
+                # not terminal
+                node.setChildIndex(q_tree.qsize()) 
+                l_data, l_label, r_data, r_label  = node.divide()
+                # append l_node and r_node
+                depth = node.getDepth() + 1
+                l_node = Node(l_data, depth)
+                r_node = Node(r_data, depth)
+                q_tree.put(l_node)
+                q_tree.put(r_node)
+                q.put(l_node)
+                q.put(r_node)
+
+
+                #os.system('kill %d' % os.getpid())
+
+                command = 'kill %d' % os.getpid()
+                print command
+                os.system(command)
+
+                
+                print len(l_data), len(r_data)
+                print "size_func", q.qsize()
+
+                command = 'kill %d' & os.getpid()
+                print command
+                os.system(command)
+                """
+
+        """# not use
+        # count number of cpu
+        core = multiprocessing.cpu_count()
+        """
+
+        """
+        # multi-processing
+        d = 0
+        q = Queue()
+        q.put(head)
+        while q.qsize() > 0:
+            print_time("depth:%d" % d)
+            jobs = []
+
+            while q.qsize() > 0:
+                #print "append", q.qsize()
+                jobs.append(Process(target=fit_process, args=(q_tree_list, q, q.get(),)))
+                
+            for j in jobs:
+                j.start()
+
+            for j in jobs:
+                j.join()
+
+            d += 1
+
+            print "size", q.qsize()
+        """
+        
+
+        #"""
+        # --------debug-----------
+        manager = Manager()
+        dic = manager.dict()
+
+        tree_list = [Node(input, 0, self.picture, self.generate_threshold, d_limit, self.condition)]
+
+        p = Process(target=fit_process, args=(dic, 0, tree_list[0]))
+        
+        print "start"
+        p.start()
+
+        print "join"
+        p.join()
+        print "end"
+
+        # ---------debug---------
+        
+        # set self to tree_list
+        self.tree_list = tree_list
+
+        print "teas", len(tree_list)
         
     def predict(self, data):
         #print "Predict"
@@ -117,10 +217,10 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    def __init__(self, data, picture, depth, gen_threshold, d_limit, condition):
+    def __init__(self, data, depth, picture, gen_threshold, d_limit, condition):
         self.data = data
-        self.picture = picture
         self.depth = depth
+        self.picture = picture
         self.gen_threshold = gen_threshold
         self.d_limit = d_limit
         self.condition = condition
@@ -153,7 +253,7 @@ class Node(object):
                 #print "divide"
                 thresholds = [t for t in self.gen_threshold(self.data)]
                 #print "opt"
-                self.opt_threshold(self.data, thresholds)
+                self.function = self.opt_threshold(self.data, thresholds)
 
                 #print "function"
 
@@ -162,30 +262,16 @@ class Node(object):
                 #print "len", len(l_data), len(r_data)
             #print self.depth, ":[", len(l_data), len(r_data), "]"
 
-    def opt_threshold(self, data, thresholds):
-        cost = self.gini if self.condition == 'gini' else self.entropy
-        index = None
-        minimum = None
-        for i,threshold in enumerate(thresholds):
-            # threshold consits of (selected_dim, theta)
-            l_data, l_label, r_data, r_label = self.divide(data, threshold)
-            temp = cost(l_label, r_label)
-            if minimum is None or temp < minimum:
-                index = i
-                minimum = temp
-        self.selected_dim, self.theta = thresholds[index]
-
-    def divide(self, data=None, threshold=None):
-        # set data
+    def divide(self, data=None, function=None):
         if data is None:
             data = self.data
-
-        # divide data and label
+        if function is None:
+            function = self.function
         lr_data = [[], []]
         lr_label = [[], []]
         for i, element in enumerate(data):
-            print element
-            index = (self.function(element, threshold) > 0)
+            #print element
+            index = (function(self.picture, element) > 0)
             lr_data[index].append(element)
             lr_label[index].append(self.picture[element[0]].getSignal(element[1], element[2]))
             #print lr_label, index, label, i
@@ -194,19 +280,19 @@ class Node(object):
         l_label, r_label = lr_label
         #print self.depth, len(l_data), len(r_data)
         return l_data, l_label, r_data, r_label
-        
-    def function(self, element, threshold=None):
-        # set threshold
-        if threshold is None:
-            selected_dim = self.selected_dim
-            theta = self.theta
-        else:
-            selected_dim, theta = threshold
 
-        i,  x,  y = element
-        dx, dy, c = selected_dim
-        print element
-        return self.picture[i].getData(x+dx, y+dy)[c] - theta
+    def opt_threshold(self, data, thresholds):
+        cost = self.gini if self.condition == 'gini' else self.entropy
+        index = None
+        minimum = None
+        for i,t in enumerate(thresholds):
+            #print t
+            l_data, l_label, r_data, r_label = self.divide(data, t)
+            temp = cost(l_label, r_label)
+            if minimum is None or temp < minimum:
+                index = i
+                minimum = temp
+        return thresholds[index]
 
     def gini(self, l_label, r_label):
         # get gini (minimize)
@@ -236,13 +322,13 @@ class Node(object):
         return -1. * e
 
     
-    def predict(self, element):
+    def predict(self, data):
         # check terminal
         if self.terminal:
             return self.label
 
         # check threshold
-        if self.function(element) > 0:
+        if self.function(self.picture, data) > 0:
             return self.r_index
         else:
             return self.l_index
@@ -251,8 +337,8 @@ class Node(object):
         return self.terminal
     
     def getDepth(self):
-        return self.depth
-    
+        return self.depth    
+ 
     def setPicture(self, picture):
         self.picture = picture
 
@@ -261,21 +347,17 @@ class Node(object):
         self.l_index = index
         self.r_index = index+1
         
-    def save(self):
-        # return parameter
-        detail = self.label if self.isTerminal() else [self.l_index, self.r_index,
-                                                       self.selected_dim, self.theta]
-        parameter = [self.depth, self.d_limit, self.terminal, detail]
-        return parameter
-
-    def load(self, parameter):
-        # set parameter
-        self.depth, self.d_limit, self.terminal, detail = parameter
-        if self.isTerminal():
-            self.label = detail
-        else:
-            self.l_index, self.r_index, self.selected_dim, self.theta = detail
-        
+    def info(self, depth=[]):
+        #print "depth:", self.depth,
+        if self.terminal:
+            #print "terminal."
+            return [self.depth]
+        #print "left_node", 
+        depth = depth + self.l_tree.info()
+        #print "right_node",
+        depth = depth + self.r_tree.info()
+        return depth
+    
 
 ##########################################################
 ##  ExtremeDecision Tree (for etrims)
@@ -288,11 +370,7 @@ class ExtremeDecisionTree(DecisionTree):
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
-        self.node_class = ExtremeNode
-
-    def getNode(self, data, depth):
-        return ExtremeNode(data, self.picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
-    
+        
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
         selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=self.visualize)
@@ -303,6 +381,20 @@ class ExtremeDecisionTree(DecisionTree):
             i,x,y = temp
             sample.append(self.picture[i].cropData(x, y, self.radius))
         betas, biases = selmae.fit(sample)
+        
+        def elm_threshold(selected_dim, theta):
+            def function(picture, element):
+                #print "thre:", "selected_dim", selected_dim,"theta", theta
+                i, x, y = element
+                crop = picture[i].cropData(x, y, self.radius)
+                #print crop
+                for i, beta in enumerate(betas):
+                    bias = biases[i]
+                    crop = sigmoid(np.dot(crop, beta.T) + bias)        
+                #print input
+                #print selected_dim, theta
+                return crop[selected_dim] - theta
+            return function
 
         numpy_data = np.array(selmae.extraction(sample))
         for i in xrange(self.num_function):            
@@ -317,65 +409,8 @@ class ExtremeDecisionTree(DecisionTree):
             #theta = self.np_rng.rand()
             
             #print "gen:", "selected_dim", selected_dim,"theta", theta
-            yield selected_dim, theta, betas, biases
-
-
-##########################################################
-##  Extreme Node (for etrims)
-##########################################################
-
-class ExtremeNode(Node):
-    def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
-        Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
-        self.radius = radius
-
-    def opt_threshold(self, data, thresholds):
-        cost = self.gini if self.condition == 'gini' else self.entropy
-        index = None
-        minimum = None
-        for i,threshold in enumerate(thresholds):
-            # threshold consits of (selected_dim, theta, betas, biases)
-            print "size of threshold:", len(threshold)
-            l_data, l_label, r_data, r_label = self.divide(data, threshold)
-            temp = cost(l_label, r_label)
-            if minimum is None or temp < minimum:
-                index = i
-                minimum = temp
-        self.selected_dim, self.theta, self.betas, self.biases = thresholds[index]
-        
-    def function(self, element, threshold=None):
-        # set threshold
-        if threshold is None:
-            selected_dim = self.selected_dim
-            theta = self.theta
-            betas = self.betas
-            biases = self.biases
-        else:
-            selected_dim, theta, betas, biases = threshold
+            yield elm_threshold(selected_dim, theta)
             
-        i,  x,  y = element
-        crop = self.picture[i].cropData(x, y, self.radius)
-        for i, beta in enumerate(betas):
-            bias = biases[i]
-            crop = sigmoid(np.dot(crop, beta.T) + bias)
-        return crop[selected_dim] - theta
-    
-
-    def save(self):
-        # return parameter
-        detail = self.label if self.isTerminal() else [self.l_index, self.r_index,
-                                                       self.selected_dim, self.theta,
-                                                       self.betas, self.biases]
-        parameter = [self.depth, self.d_limit, self.terminal, detail]
-        return parameter
-
-    def load(self, parameter):
-        # set parameter
-        self.depth, self.d_limit, self.terminal, detail = parameter
-        if self.isTerminal():
-            self.label = detail
-        else:
-            self.l_index, self.r_index, self.selected_dim, self.theta, self.betas, self.biases = detail
     
     
 ##########################################################
@@ -475,7 +510,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
     num_function = 10 #100 ##########debug#####################
     print_time('tree2etrims test size is %d' % (size))
 
-    """
+    
     print_time('train_DecisionTree number of function is %d' % num_function)
     dt = DecisionTree(radius=size, num_function=num_function)
     dt.fit(train_set, d_limit=d_limit)
@@ -486,7 +521,6 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
 
     print_time('DecisionTree info')
     dt.info()
-    """
     
     #return ################################# debug ########################################
     
