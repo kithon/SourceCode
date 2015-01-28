@@ -53,16 +53,16 @@ class DecisionTree(object):
         start, end = 0, len(tree_list)
         current_depth = 0
 
-        #print depth
-        print_time("depth:%d" % current_depth)
-
         while start != end:
             # initialize jobs and dic
             jobs = []
             dic = multiprocessing.Manager().dict()
 
+            # print depth
+            print_time("depth:%d" % current_depth)
+            
             # define node_list and jobs to do multiprocess
-            node_list = tree_list[start:min(start+core, end)]
+            node_list = tree_list[start:end]#tree_list[start:min(start+core, end)]
             for i,node in enumerate(node_list):
                 jobs.append(multiprocessing.Process(target=fit_process, args=(dic,i,node)))
 
@@ -75,7 +75,8 @@ class DecisionTree(object):
 
             # set parameter
             for i,node in enumerate(node_list):
-                node.load(dic.get(i))
+                parameter = dic.get(i)
+                node.load(parameter)
 
             # make child node
             for node in node_list:
@@ -88,13 +89,16 @@ class DecisionTree(object):
                     tree_list.append(self.getNode(l_data, depth))
                     tree_list.append(self.getNode(r_data, depth))
 
+            """
             if depth > current_depth:
                 current_depth = depth
                 print_time("depth:%d" % current_depth)
+            """
             
             # set next index
             start = end
-            end = len(tree_list)
+            end = len(tree_list)#end + len(node_list)
+            current_depth += 1
 
         # set self to tree_list
         self.tree_list = tree_list
@@ -122,6 +126,14 @@ class DecisionTree(object):
         while True:
             node = self.tree_list[index]
             node.setPicture(self.picture)
+
+            """# ----- debug -----
+            parameter = node.save()
+            print "debug in predict (parameter of node):", parameter
+            """# ----- debug -----
+
+            
+            
             if node.isTerminal():
                 return node.predict(data)
             index = node.predict(data)
@@ -167,6 +179,8 @@ class Node(object):
         self.gen_threshold = gen_threshold
         self.d_limit = d_limit
         self.condition = condition
+        self.l_index = 0
+        self.r_index = 0
 
     def fit(self):
         #print "label", label
@@ -306,8 +320,7 @@ class Node(object):
         
     def save(self):
         # return parameter
-        detail = self.label if self.isTerminal() else [self.l_index, self.r_index,
-                                                       self.selected_dim, self.theta]
+        detail = self.label if self.isTerminal() else [self.l_index, self.r_index, self.selected_dim, self.theta]
         parameter = [self.depth, self.d_limit, self.terminal, detail]
         return parameter
 
@@ -378,7 +391,7 @@ class ExtremeNode(Node):
         minimum = None
         for i,threshold in enumerate(thresholds):
             # threshold consits of (selected_dim, theta, betas, biases)
-            print "size of threshold:", len(threshold)
+            #print "size of threshold:", len(threshold)
             l_data, l_label, r_data, r_label = self.divide(data, threshold)
             temp = cost(l_label, r_label)
             if minimum is None or temp < minimum:
