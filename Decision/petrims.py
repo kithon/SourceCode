@@ -5,11 +5,17 @@ import random
 import datetime
 import numpy as np
 import collections
+import multiprocessing 
 from PIL import Image
 from extreme import StackedELMAutoEncoder
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
+
+def fit_process(dic, index, node):
+    node.fit()
+    parameter = node.save()
+    dic.update({index: parameter})
 
 ##########################################################
 ##  Decision Tree (for etrims)
@@ -41,17 +47,54 @@ class DecisionTree(object):
 
         # fitting with tree_list
         tree_list = [self.getNode(input, 0)]
-        for node in tree_list:
-            print "fit"
-            node.fit()
-            if not node.isTerminal():
-                # not terminal
-                node.setChildIndex(len(tree_list)) 
-                l_data, l_label, r_data, r_label  = node.divide()
-                # append l_node and r_node
-                depth = node.getDepth() + 1
-                tree_list.append(self.getNode(l_data, depth))
-                tree_list.append(self.getNode(r_data, depth))
+        core = multiprocessing.cpu_count()
+
+        # initialize index and depth
+        start, end = 0, len(tree_list)
+        current_depth = 0
+
+        #print depth
+        print_time("depth:%d" % current_depth)
+
+        while start != end:
+            # initialize jobs and dic
+            jobs = []
+            dic = multiprocessing.Manager().dict()
+
+            # define node_list and jobs to do multiprocess
+            node_list = tree_list[start:min(start+core, end)]
+            for i,node in enumerate(node_list):
+                jobs.append(multiprocessing.Process(target=fit_process, args=(dic,i,node)))
+
+            # multiprocessing
+            for j in jobs:
+                j.start()
+
+            for j in jobs:
+                j.join()
+
+            # set parameter
+            for i,node in enumerate(node_list):
+                node.load(dic.get(i))
+
+            # make child node
+            for node in node_list:
+                if not node.isTerminal():
+                    # not terminal
+                    node.setChildIndex(len(tree_list)) 
+                    l_data, l_label, r_data, r_label  = node.divide()
+                    # append l_node and r_node
+                    depth = node.getDepth() + 1
+                    tree_list.append(self.getNode(l_data, depth))
+                    tree_list.append(self.getNode(r_data, depth))
+
+            if depth > current_depth:
+                current_depth = depth
+                print_time("depth:%d" % current_depth)
+            
+            # set next index
+            start = end
+            end = len(tree_list)
 
         # set self to tree_list
         self.tree_list = tree_list
@@ -184,7 +227,7 @@ class Node(object):
         lr_data = [[], []]
         lr_label = [[], []]
         for i, element in enumerate(data):
-            print element
+            #print element
             index = (self.function(element, threshold) > 0)
             lr_data[index].append(element)
             lr_label[index].append(self.picture[element[0]].getSignal(element[1], element[2]))
@@ -205,7 +248,7 @@ class Node(object):
 
         i,  x,  y = element
         dx, dy, c = selected_dim
-        print element
+        #print element
         return self.picture[i].getData(x+dx, y+dy)[c] - theta
 
     def gini(self, l_label, r_label):
