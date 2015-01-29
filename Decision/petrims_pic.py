@@ -440,7 +440,7 @@ class ExtremeNode(Node):
 
 class Pic(object):
     def __init__(self, data, signal):
-        self.w, self.h = self.data.size
+        self.w, self.h = data.size
         self.setData(data)
         self.setSignal(signal)
 
