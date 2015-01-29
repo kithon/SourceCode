@@ -473,11 +473,11 @@ class Pic(object):
             # out of y_range
             return [0,0,0]
         # in range
-        return self.data[x,y]
+        return self.data[x][y]
 
     def getSignal(self, x, y):
         # in range
-        return self.signal[x,y]
+        return self.signal[x][y]
 
     def cropData(self, x, y, radius):
         crop = []
