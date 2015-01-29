@@ -22,7 +22,6 @@ def fit_process(dic, index, node):
 ##########################################################
 
 class DecisionTree(object):
-    __slots__ = ['radius', 'num_function', 'condition', 'np_rng', 'd_limit', 'tree_list']
     def __init__(self, radius=None, num_function=10,
                  condition='gini', seed=123):
         if radius is None:
@@ -48,6 +47,7 @@ class DecisionTree(object):
 
         # fitting with tree_list
         tree_list = [self.getNode(input, 0)]
+        core = multiprocessing.cpu_count()
 
         # initialize index and depth
         start, end = 0, len(tree_list)
@@ -62,8 +62,7 @@ class DecisionTree(object):
             print_time("depth:%d" % current_depth)
             
             # define node_list and jobs to do multiprocess
-            node_list = tree_list[start:end]
-            
+            node_list = tree_list[start:end]#tree_list[start:min(start+core, end)]
             for i,node in enumerate(node_list):
                 jobs.append(multiprocessing.Process(target=fit_process, args=(dic,i,node)))
 
@@ -89,10 +88,16 @@ class DecisionTree(object):
                     depth = node.getDepth() + 1
                     tree_list.append(self.getNode(l_data, depth))
                     tree_list.append(self.getNode(r_data, depth))
+
+            """
+            if depth > current_depth:
+                current_depth = depth
+                print_time("depth:%d" % current_depth)
+            """
             
             # set next index
             start = end
-            end = len(tree_list))
+            end = len(tree_list)#end + len(node_list)
             current_depth += 1
 
         # set self to tree_list
@@ -120,7 +125,14 @@ class DecisionTree(object):
         count = 0
         while True:
             node = self.tree_list[index]
-            node.setPicture(self.picture)            
+            node.setPicture(self.picture)
+
+            """# ----- debug -----
+            parameter = node.save()
+            print "debug in predict (parameter of node):", parameter
+            """# ----- debug -----
+
+            
             
             if node.isTerminal():
                 return node.predict(data)
@@ -149,7 +161,9 @@ class DecisionTree(object):
 
     def info(self):
         print "Information"
+        print "root node",
         print "node size", len(self.tree_list)
+        #print "depth", depth_array
         print "max depth", self.tree_list[-1].getDepth()
 
         
@@ -158,7 +172,6 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    __slots__ = ['data', 'depth', 'gen_threshold', 'd_limit', 'condition']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, condition):
         self.data = data
         self.picture = picture
@@ -325,7 +338,6 @@ class Node(object):
 ##########################################################
 
 class ExtremeDecisionTree(DecisionTree):
-    __slots__ = ['radius', 'num_function', 'condition', 'np_rng', 'd_limit', 'tree_list', 'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, radius, num_function, condition, seed)
@@ -369,7 +381,6 @@ class ExtremeDecisionTree(DecisionTree):
 ##########################################################
 
 class ExtremeNode(Node):
-    __slots__ = ['data', 'depth', 'gen_threshold', 'd_limit', 'radius', 'condition']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
@@ -428,30 +439,11 @@ class ExtremeNode(Node):
 ##########################################################
 
 class Pic(object):
-    __slots__ = ['data', 'signal', 'w', 'h']
     def __init__(self, data, signal):
-        self.w, self.h = data.size
-        self.setData(data)
-        self.setSignal(signal)
+        self.data = data
+        self.signal = signal
+        self.w, self.h = self.data.size
 
-    def setData(self, data):
-        data_list = []
-        for x in xrange(self.w):
-            row = []
-            for y in xrange(self.h):
-                row.append(list(data.getpixel((x,y))))
-            data_list.append(row)
-        self.data = data_list
-        
-    def setSignal(self, signal):
-        signal_list = []
-        for x in xrange(self.w):
-            row = []
-            for y in xrange(self.h):
-                row.append(signal.getpixel((x,y)))
-            signal_list.append(row)
-        self.signal = signal_list
-        
     def getSize(self):
         return self.w, self.h
 
@@ -463,11 +455,11 @@ class Pic(object):
             # out of y_range
             return [0,0,0]
         # in range
-        return self.data[x][y]
+        return list(self.data.getpixel((x, y)))
 
     def getSignal(self, x, y):
         # in range
-        return self.signal[x][y]
+        return self.signal.getpixel((x, y))
 
     def cropData(self, x, y, radius):
         crop = []
