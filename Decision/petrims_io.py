@@ -59,6 +59,8 @@ class DecisionTree(object):
         # initialize current_depth
         current_depth = 0
 
+        # open file to write
+        f = open(self.file_name, 'w')
         while len(exec_list):
             # initialize jobs and dic
             jobs = []
@@ -84,7 +86,6 @@ class DecisionTree(object):
                 node.load(parameter)
 
             # make child node
-            f = open(self.file_name, 'w')
             for node in exec_list:
                 if not node.isTerminal():
                     # not terminal
@@ -98,7 +99,6 @@ class DecisionTree(object):
 
                 # write node's data in self.dile_name
                 f.write(str(node.save()) + '\n')
-            f.close()
             
             # update execution_list, wait_list, node_length and current_depth
             exec_list = wait_list
@@ -107,6 +107,8 @@ class DecisionTree(object):
 
         # set node_length
         self.node_length = node_length
+        # close file
+        f.close()
 
     def generate_threshold(self, data):
         for i in xrange(self.num_function):
