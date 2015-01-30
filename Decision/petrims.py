@@ -22,7 +22,9 @@ def fit_process(dic, index, node):
 ##########################################################
 
 class DecisionTree(object):
-    __slots__ = ['radius', 'num_function', 'condition', 'np_rng', 'd_limit', 'tree_list']
+    __slots__ = ['radius', 'num_function', 'condition',
+                 'np_rng', 'd_limit', 'tree_list',
+                 'picture']
     def __init__(self, radius=None, num_function=10,
                  condition='gini', seed=123):
         if radius is None:
@@ -158,7 +160,9 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    __slots__ = ['data', 'depth', 'gen_threshold', 'd_limit', 'condition']
+    __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
+                 'd_limit', 'condition', 'l_index', 'r_index',
+                 'terminal', 'label', 'selected_dim', 'theta']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, condition):
         self.data = data
         self.picture = picture
@@ -325,7 +329,9 @@ class Node(object):
 ##########################################################
 
 class ExtremeDecisionTree(DecisionTree):
-    __slots__ = ['radius', 'num_function', 'condition', 'np_rng', 'd_limit', 'tree_list', 'elm_hidden', 'elm_coef', 'visualize']
+    __slots__ = ['radius', 'num_function', 'condition',
+                 'np_rng', 'd_limit', 'tree_list', 'picture',
+                 'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, radius, num_function, condition, seed)
@@ -369,7 +375,9 @@ class ExtremeDecisionTree(DecisionTree):
 ##########################################################
 
 class ExtremeNode(Node):
-    __slots__ = ['data', 'depth', 'gen_threshold', 'd_limit', 'radius', 'condition']
+    __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
+                 'd_limit', 'radius', 'condition', 'l_index', 'r_index',
+                 'terminal', 'label', 'selected_dim', 'theta']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
