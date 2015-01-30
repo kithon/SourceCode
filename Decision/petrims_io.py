@@ -11,7 +11,8 @@ from PIL import Image
 from extreme import StackedELMAutoEncoder
 
 DATA = datetime.datetime.today()
-SUFFIX =  '%s_%s_%s_%s.log' % (DATA.month, DATA.day, DATA.hour, DATA.minute)
+SUFFIX = 'parameter.log'
+#SUFFIX =  '%s_%s_%s_%s.log' % (DATA.month, DATA.day, DATA.hour, DATA.minute)
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
