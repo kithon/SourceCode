@@ -94,7 +94,7 @@ class DecisionTree(object):
             
             # set next index
             start = end
-            end = len(tree_list))
+            end = len(tree_list)
             current_depth += 1
 
         # set self to tree_list
