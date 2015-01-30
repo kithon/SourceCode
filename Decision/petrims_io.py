@@ -169,7 +169,7 @@ class DecisionTree(object):
 
 class Node(object):
     __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
-                 'd_limit', 'condition', 'l_index', 'r_index',
+                 'd_limit', 'condition', 'l_index', 'r_index'
                  'terminal', 'label', 'selected_dim', 'theta']
     def __init__(self, data=None, picture=None, depth=None, gen_threshold=None, d_limit=None, condition=None):
         if not data is None:
@@ -348,7 +348,6 @@ class ExtremeDecisionTree(DecisionTree):
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
-        self.node_class = ExtremeNode
         self.file_name = 'edt_' + SUFFIX
 
     def getNode(self, data=None, depth=None):
@@ -387,7 +386,7 @@ class ExtremeDecisionTree(DecisionTree):
 
 class ExtremeNode(Node):
     __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
-                 'd_limit', 'radius', 'condition', 'l_index', 'r_index',
+                 'd_limit', 'radius', 'condition', 'l_index', 'r_index'
                  'terminal', 'label', 'selected_dim', 'theta']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
