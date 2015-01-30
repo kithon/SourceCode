@@ -26,7 +26,9 @@ def fit_process(dic, index, node):
 ##########################################################
 
 class DecisionTree(object):
-    __slots__ = ['radius', 'num_function', 'condition', 'np_rng', 'd_limit', 'tree_list']
+    __slots__ = ['radius', 'num_function', 'condition',
+                 'np_rng', 'd_limit', 'file_name',
+                 'picture', 'node_length']
     def __init__(self, radius=None, num_function=10,
                  condition='gini', seed=123):
         if radius is None:
@@ -103,6 +105,9 @@ class DecisionTree(object):
             wait_list = []
             current_depth += 1
 
+        # set node_length
+        self.node_length = node_length
+
     def generate_threshold(self, data):
         for i in xrange(self.num_function):
             # default radius (-6 <= x,y <= 6), channel (0 <= c < 3)
@@ -122,7 +127,7 @@ class DecisionTree(object):
     def predict(self, data):
         # read parameter_list
         f = open(self.file_name, 'r')
-        parameter_list = f.read().split('\n') # warning: tail is null
+        parameter_list = f.read().split('\n')[0:self.node_length]
         f.close()
         
         #print "Predict"
@@ -155,8 +160,7 @@ class DecisionTree(object):
     def info(self):
         print "Information"
         # need to revise
-        print "node size", len(self.tree_list)
-        print "max depth", self.tree_list[-1].getDepth()
+        print "node size", self.node_length
 
         
 ##########################################################
@@ -164,16 +168,19 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    __slots__ = ['data', 'depth', 'gen_threshold', 'd_limit', 'condition']
+    __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
+                 'd_limit', 'condition', 'l_index', 'r_index'
+                 'terminal', 'label', 'selected_dim', 'theta']
     def __init__(self, data=None, picture=None, depth=None, gen_threshold=None, d_limit=None, condition=None):
-        self.data = data
-        self.picture = picture
-        self.depth = depth
-        self.gen_threshold = gen_threshold
-        self.d_limit = d_limit
-        self.condition = condition
-        self.l_index = 0
-        self.r_index = 0
+        if not data is None:
+            self.data = data
+            self.picture = picture
+            self.depth = depth
+            self.gen_threshold = gen_threshold
+            self.d_limit = d_limit
+            self.condition = condition
+            self.l_index = 0
+            self.r_index = 0
 
     def fit(self):
         #print "label", label
@@ -331,7 +338,10 @@ class Node(object):
 ##########################################################
 
 class ExtremeDecisionTree(DecisionTree):
-    __slots__ = ['radius', 'num_function', 'condition', 'np_rng', 'd_limit', 'tree_list', 'elm_hidden', 'elm_coef', 'visualize']
+    __slots__ = ['radius', 'num_function', 'condition',
+                 'np_rng', 'd_limit', 'file_name',
+                 'picture', 'node_length',
+                 'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, radius, num_function, condition, seed)
@@ -376,7 +386,9 @@ class ExtremeDecisionTree(DecisionTree):
 ##########################################################
 
 class ExtremeNode(Node):
-    __slots__ = ['data', 'depth', 'gen_threshold', 'd_limit', 'radius', 'condition']
+    __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
+                 'd_limit', 'radius', 'condition', 'l_index', 'r_index'
+                 'terminal', 'label', 'selected_dim', 'theta']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
