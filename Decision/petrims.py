@@ -338,7 +338,6 @@ class ExtremeDecisionTree(DecisionTree):
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
-        self.node_class = ExtremeNode
 
     def getNode(self, data, depth):
         return ExtremeNode(data, self.picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
