@@ -390,7 +390,8 @@ class ExtremeDecisionTree(DecisionTree):
 class ExtremeNode(Node):
     __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
                  'd_limit', 'radius', 'condition', 'l_index', 'r_index',
-                 'terminal', 'label', 'selected_dim', 'theta']
+                 'terminal', 'label', 'selected_dim', 'theta',
+                 'betas', 'biases']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
