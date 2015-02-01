@@ -29,7 +29,7 @@ def fit_process(dic, index, node):
 class DecisionTree(object):
     __slots__ = ['radius', 'num_function', 'condition',
                  'np_rng', 'd_limit', 'file_name',
-                 'picture', 'node_length']
+                 'picture', 'node_length', 'parameter_list']
     def __init__(self, radius=None, num_function=10,
                  condition='gini', seed=123):
         if radius is None:
@@ -128,23 +128,24 @@ class DecisionTree(object):
 
         
     def predict(self, data):
-        # read parameter_list
-        f = open(self.file_name, 'r')
-        parameter_list = f.read().split('\n')[0:self.node_length]
-        f.close()
-        
         #print "Predict"
         index = 0
         while True:
             node = self.getNode()
             node.setPicture(self.picture)
-            node.load(literal_eval(parameter_list[index]))
+            node.load(self.parameter_list[index])
             
             if node.isTerminal():
                 return node.predict(data)
             index = node.predict(data)
 
     def score(self, picture):
+        # read parameter_list
+        f = open(self.file_name, 'r')
+        str_list = f.read().split('\n')[0:self.node_length]
+        self.parameter_list = map(literal_eval, str_list)
+        f.close()
+
         #print "score"
         self.picture = picture
         input = []
@@ -343,7 +344,7 @@ class Node(object):
 class ExtremeDecisionTree(DecisionTree):
     __slots__ = ['radius', 'num_function', 'condition',
                  'np_rng', 'd_limit', 'file_name',
-                 'picture', 'node_length',
+                 'picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False):
