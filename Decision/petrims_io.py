@@ -433,7 +433,7 @@ class ExtremeNode(Node):
         # return parameter
         detail = self.label if self.isTerminal() else [self.l_index, self.r_index,
                                                        self.selected_dim, self.theta,
-                                                       self.betas, self.biases]
+                                                       self.betas.tolist(), self.biases.tolist()]
         parameter = [self.depth, self.d_limit, self.terminal, detail]
         return parameter
 
@@ -443,7 +443,14 @@ class ExtremeNode(Node):
         if self.isTerminal():
             self.label = detail
         else:
-            self.l_index, self.r_index, self.selected_dim, self.theta, self.betas, self.biases = detail
+            l, r, s, t, be, bi = detail
+            self.l_index = l
+            self.r_index = r
+            self.selected_dim = s
+            self.theta = t
+            self.betas = np.array(be)
+            self.biases = np.array(bi)
+            
     
     
 ##########################################################
