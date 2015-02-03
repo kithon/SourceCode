@@ -17,11 +17,20 @@ SUFFIX = 'parameter.log'
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
 
+"""
 def fit_process(dic, index, node):
     node.fit()
     parameter = node.save()
     dic.update({index: parameter})
+"""
 
+def fit_process(dic, index_list, node_list):
+    for i,node in enumerate(node_list):
+        node.fit()
+        parameter = node.save()
+        dic.update({index_list[i]: parameter})
+
+    
 ##########################################################
 ##  Decision Tree (for etrims)
 ##########################################################
@@ -59,6 +68,7 @@ class DecisionTree(object):
 
         # initialize current_depth
         current_depth = 0
+        core = multiprocessing.cpu_count()
 
         # open file to write
         f = open(self.file_name, 'w')
@@ -66,13 +76,17 @@ class DecisionTree(object):
             # initialize jobs and dic
             jobs = []
             dic = multiprocessing.Manager().dict()
+            num_process = min(core, len(exec_list))
 
             # print depth
             print_time("depth:%d" % current_depth)
 
-            # append Process
-            for i,node in enumerate(exec_list):
-                jobs.append(multiprocessing.Process(target=fit_process, args=(dic,i,node)))
+            # distribute exec_list
+            for i in xrange(num_process):
+                index_list = range(i, len(exec_list), num_process)
+                node_list = [exec_list[k] for k in index_list]
+                # append process
+                jobs.append(multiprocessing.Process(target=fit_process, args=(dic, index_list, node_list)))
 
             # multiprocessing
             for j in jobs:
