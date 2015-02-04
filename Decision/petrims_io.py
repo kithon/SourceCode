@@ -3,7 +3,7 @@ import os
 import sys
 import random
 import datetime
-import commands
+import linecache
 import numpy as np
 import collections
 import multiprocessing
@@ -148,11 +148,11 @@ class DecisionTree(object):
         while True:
             node = self.getNode()
             node.setPicture(self.picture)
-            cmd = 'head -%d %s | tail -1' % (index, self.file_name)
-            parameter = literal_eval(commands.getoutput(cmd))
+            parameter = literal_eval(linecache.getline(self.file_name, index+1).split('\n')[0])
             node.load(parameter)
             
             if node.isTerminal():
+                #print "predict done"
                 return node.predict(data)
             index = node.predict(data)
 
