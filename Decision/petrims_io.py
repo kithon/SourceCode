@@ -3,6 +3,7 @@ import os
 import sys
 import random
 import datetime
+import commands
 import numpy as np
 import collections
 import multiprocessing
@@ -147,7 +148,9 @@ class DecisionTree(object):
         while True:
             node = self.getNode()
             node.setPicture(self.picture)
-            node.load(self.parameter_list[index])
+            cmd = 'head -%d %s | tail -1' % (index, self.file_name)
+            parameter = literal_eval(commands.getoutput(cmd))
+            node.load(parameter)
             
             if node.isTerminal():
                 return node.predict(data)
@@ -155,10 +158,12 @@ class DecisionTree(object):
 
     def score(self, picture):
         # read parameter_list
+        """
         f = open(self.file_name, 'r')
         str_list = f.read().split('\n')[0:self.node_length]
         self.parameter_list = map(literal_eval, str_list)
         f.close()
+        """
 
         #print "score"
         self.picture = picture
