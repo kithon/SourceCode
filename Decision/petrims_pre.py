@@ -578,6 +578,8 @@ def load_etrims(is08=True, size=6, shuffle=True, visualize=True):
         # print filename
         print file_name, "done."
 
+    print "test or train"
+    print test_or_train    
     print "train:", len(train_set), "test:", len(test_set)
     return train_set, test_set
 
