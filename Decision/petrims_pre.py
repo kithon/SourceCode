@@ -592,6 +592,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
     
     print_time('train_DecisionTree number of function is %d' % num_function)
     dt = DecisionTree(radius=size, num_function=num_function)
+    dt.d_limit = d_limit
     #dt.fit(train_set, d_limit=d_limit)
     
     
@@ -609,6 +610,7 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
 
     print_time('train_ExtremeDecisionTree elm_hidden is %d, num function is %d' % (elm_hidden[0], num_function))
     edt = ExtremeDecisionTree(radius=size, elm_hidden=elm_hidden, elm_coef=None, num_function=num_function)
+    edt.d_limit = d_limit
     #edt.fit(train_set, d_limit=d_limit)
 
     print_time('test_ExtremeDecisionTree')
