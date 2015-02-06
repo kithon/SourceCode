@@ -600,8 +600,8 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
     score = dt.score(test_set)
     print_time('score is %f' % score)
 
-    print_time('DecisionTree info')
-    dt.info()
+    #print_time('DecisionTree info')
+    #dt.info()
     
     #return ################################# debug ########################################
     
@@ -617,8 +617,8 @@ def etrims_tree(n_hidden = [1000], coef = [1000.], size=6, d_limit=None):
     score = edt.score(test_set)
     print_time('score is %f' % score)
 
-    print_time('ExtremeDecisionTree info')
-    edt.info()
+    #print_time('ExtremeDecisionTree info')
+    #edt.info()
 
     print_time('tree2etrims test is finished !')
 
