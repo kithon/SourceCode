@@ -138,6 +138,5 @@ if __name__ == '__main__':
                     four=args.four, num=args.num, parameter=args.parameter, t_args=t_args)
     else:
         print_time('etrims_test.py: error: argument -t/--tree: expected {d,e,b} argument')
-        return
-
+        
     
