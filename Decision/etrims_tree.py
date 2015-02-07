@@ -152,7 +152,7 @@ class DecisionTree(object):
         while True:
             node = self.getNode()
             node.setPicture(self.picture)
-            parameter = literal_eval(linecache.getline(self.getFileName(index), 0).split('\n')[0])
+            parameter = literal_eval(linecache.getline(self.getFileName(index), 1).split('\n')[0])
             node.load(parameter)
             
             if node.isTerminal():
