@@ -32,7 +32,7 @@ def fit_process(dic, index_list, node_list):
 
 class DecisionTree(object):
     __slots__ = ['radius', 'num_function', 'condition',
-                 'np_rng', 'd_limit', 'file_name',
+                 'np_rng', 'd_limit', 'dir_name', 'file_name',
                  'picture', 'node_length', 'parameter_list']
     def __init__(self, radius=None, num_function=10, condition='gini', seed=123):
         if radius is None:
@@ -359,7 +359,7 @@ class Node(object):
 
 class ExtremeDecisionTree(DecisionTree):
     __slots__ = ['radius', 'num_function', 'condition',
-                 'np_rng', 'd_limit', 'file_name',
+                 'np_rng', 'd_limit', 'dir_name', 'file_name',
                  'picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
@@ -476,7 +476,7 @@ class ExtremeNode(Node):
 
 class BinaryExtremeDecisionTree(DecisionTree):
     __slots__ = ['radius', 'num_function', 'condition',
-                 'np_rng', 'd_limit', 'file_name',
+                 'np_rng', 'd_limit', 'dir_name', 'file_name',
                  'picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
