@@ -554,7 +554,7 @@ class BinaryExtremeNode(Node):
         detail = [] if self.terminal else [self.l_index, self.r_index,
                                            self.weight.tolist(),
                                            self.bias.tolist(),
-                                           self.beta.tolist())]
+                                           self.beta.tolist()]
         parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
         return parameter
 
