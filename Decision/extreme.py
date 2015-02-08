@@ -577,7 +577,7 @@ class Layer(object):
             b : bias from input to hidden layer
             beta : beta from hidden to output layer
     """
-    def __init__(self, activation, size, w, b, c, visualize):
+    def __init__(self, activation, size, w, b, c, visualize=False):
         self.activation = activation
         self.n_input, self.n_hidden, self.n_output = size
         self.c = c
