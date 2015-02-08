@@ -7,7 +7,7 @@ import numpy as np
 import collections
 import multiprocessing
 from ast import literal_eval
-from extreme import StackedELMAutoEncoder
+from extreme import StackedELMAutoEncoder, BinaryELMClassifier
 
 DATE = datetime.datetime.today()
 PREFFIX = 'etrims_'
@@ -210,20 +210,12 @@ class Node(object):
             i, x, y = temp
             label.append(self.picture[i].getSignal(x,y))
 
+        self.label = collections.Counter(label).most_common()[0][0]
         if len(set(label)) == 1:
-            # terminate
-            #print "terminate"
             self.terminal = True
-            self.label = label[0]
-
         elif not self.d_limit is None and self.d_limit <= self.depth:
-            # forcely terminate
-            #print "break"
             self.terminal = True
-            self.label = collections.Counter(label).most_common()[0][0]
-
         else:
-            # continue
             self.terminal = False
             l_data, r_data = [], []
             while len(l_data) == 0 or len(r_data) == 0:
@@ -340,16 +332,14 @@ class Node(object):
         
     def save(self):
         # return parameter
-        detail = self.label if self.isTerminal() else [self.l_index, self.r_index, self.selected_dim, self.theta]
-        parameter = [self.depth, self.d_limit, self.terminal, detail]
+        detail = [] if self.isTerminal() else [self.l_index, self.r_index, self.selected_dim, self.theta]
+        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
         return parameter
 
     def load(self, parameter):
         # set parameter
-        self.depth, self.d_limit, self.terminal, detail = parameter
-        if self.isTerminal():
-            self.label = detail
-        else:
+        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
+        if not self.isTerminal():
             self.l_index, self.r_index, self.selected_dim, self.theta = detail
         
 
@@ -363,8 +353,10 @@ class ExtremeDecisionTree(DecisionTree):
                  'picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
-                 radius=None, num_function=10, condition='gini', seed=123, visualize=False):
+                 radius=1, num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, radius, num_function, condition, seed)
+        if elm_hidden is None:
+            elm_hidden = [3 * (2*radius+1) * (2*radius+1) * 2]
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
@@ -392,12 +384,6 @@ class ExtremeDecisionTree(DecisionTree):
             min_row = selected_row.min()
             max_row = selected_row.max()
             theta = self.np_rng.rand() * (max_row - min_row) + min_row
-            #print "gen:", "selected_dim", selected_dim,"theta", theta
-            
-            #selected_dim = self.np_rng.randint(self.elm_hidden[-1])
-            #theta = self.np_rng.rand()
-            
-            #print "gen:", "selected_dim", selected_dim,"theta", theta
             yield selected_dim, theta, betas, biases
 
 
@@ -448,19 +434,17 @@ class ExtremeNode(Node):
 
     def save(self):
         # return parameter
-        detail = self.label if self.isTerminal() else [self.l_index, self.r_index,
-                                                       self.selected_dim, self.theta,
-                                                       map(lambda n:n.tolist(), self.betas),
-                                                       map(lambda n:n.tolist(), self.biases)]
-        parameter = [self.depth, self.d_limit, self.terminal, detail]
+        detail = [] if self.isTerminal() else [self.l_index, self.r_index,
+                                               self.selected_dim, self.theta,
+                                               map(lambda n:n.tolist(), self.betas),
+                                               map(lambda n:n.tolist(), self.biases)]
+        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
         return parameter
 
     def load(self, parameter):
         # set parameter
-        self.depth, self.d_limit, self.terminal, detail = parameter
-        if self.isTerminal():
-            self.label = detail
-        else:
+        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
+        if not self.isTerminal():
             l, r, s, t, be, bi = detail
             self.l_index = l
             self.r_index = r
@@ -482,6 +466,8 @@ class BinaryExtremeDecisionTree(DecisionTree):
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, radius, num_function, condition, seed)
+        if elm_hidden is None:
+            elm_hidden = 3 * (2*radius+1) * (2*radius+1) * 2
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
@@ -493,34 +479,42 @@ class BinaryExtremeDecisionTree(DecisionTree):
     
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
-        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=self.visualize)
-        sample = []
-        num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
-        sample_index = random.sample(data, num)
-        for temp in sample_index:
-            i,x,y = temp
-            sample.append(self.picture[i].cropData(x, y, self.radius))
-        betas, biases = selmae.fit(sample)
-
-        numpy_data = np.array(selmae.extraction(sample))
         for i in xrange(self.num_function):            
-            selected_dim = self.np_rng.randint(self.elm_hidden[-1])
-            selected_row = numpy_data.T[selected_dim]
-            min_row = selected_row.min()
-            max_row = selected_row.max()
-            theta = self.np_rng.rand() * (max_row - min_row) + min_row
-            yield selected_dim, theta, betas, biases
+            elm = BinaryELMClassifier(n_hidden=self.elm_hidden, coef=self.elm_coef)
+            sample_input, sample_label  = [], []
+            num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
+
+            label = set()
+            while len(label) < 2:
+                label.clear()
+                sample_index = random.sample(data, num)
+                for temp in sample_index:
+                    i,x,y = temp
+                    label.add(self.picture[i].getSignal(x, y))
+
+            length = len(label) / 2
+            one_index = random.sample(label, length)
+            for temp in sample_index:
+                i,x,y = temp
+                sample_input.append(self.picture[i].cropData(x, y, self.radius))
+                if self.picture[i].getSignal(x, y) in one_index:
+                    sample_label.append(1)
+                else:
+                    sample_label.append(0)
+                
+            weight, bias, beta = elm.fit(sample_input, sample_label)
+            yield weight, bias, beta
 
 
 ##########################################################
-##  Binaey Extreme Node (for etrims)
+##  Binary Extreme Node (for etrims)
 ##########################################################
 
 class BinaryExtremeNode(Node):
     __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
                  'd_limit', 'radius', 'condition', 'l_index', 'r_index',
-                 'terminal', 'label', 'selected_dim', 'theta',
-                 'betas', 'biases']
+                 'terminal', 'label',
+                 'weight', 'bias', 'beta']
     def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
@@ -537,48 +531,43 @@ class BinaryExtremeNode(Node):
             if minimum is None or temp < minimum:
                 index = i
                 minimum = temp
-        self.selected_dim, self.theta, self.betas, self.biases = thresholds[index]
+        self.weight, self.bias, self.beta = thresholds[index]
         
     def function(self, element, threshold=None):
         # set threshold
         if threshold is None:
-            selected_dim = self.selected_dim
-            theta = self.theta
-            betas = self.betas
-            biases = self.biases
+            weight = self.weight
+            bias = self.bias
+            beta = self.beta
         else:
-            selected_dim, theta, betas, biases = threshold
+            weight, bias, beta = threshold
             
-        i,  x,  y = element
+        i, x, y = element
         crop = self.picture[i].cropData(x, y, self.radius)
-        for i, beta in enumerate(betas):
-            bias = biases[i]
-            crop = sigmoid(np.dot(crop, beta.T) + bias)
-        return crop[selected_dim] - theta
+        crop = sigmoid(np.dot(weight.T, crop) + bias)
+        crop = np.dot(beta.T, crop)
+        return crop - 0.5
     
 
     def save(self):
         # return parameter
-        detail = self.label if self.isTerminal() else [self.l_index, self.r_index,
-                                                       self.selected_dim, self.theta,
-                                                       map(lambda n:n.tolist(), self.betas),
-                                                       map(lambda n:n.tolist(), self.biases)]
-        parameter = [self.depth, self.d_limit, self.terminal, detail]
+        detail = [] if self.terminal else [self.l_index, self.r_index,
+                                           self.weight.tolist(),
+                                           self.bias.tolist(),
+                                           self.beta.tolist())]
+        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
         return parameter
 
     def load(self, parameter):
         # set parameter
-        self.depth, self.d_limit, self.terminal, detail = parameter
-        if self.isTerminal():
-            self.label = detail
-        else:
-            l, r, s, t, be, bi = detail
+        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
+        if not self.isTerminal():
+            l, r, we, bi, be = detail
             self.l_index = l
             self.r_index = r
-            self.selected_dim = s
-            self.theta = t
-            self.betas = map(np.array, be)
-            self.biases = map(np.array, bi)            
+            self.weight = np.array(we)
+            self.bias = np.array(bi)
+            self.beta = np.array(be)            
     
     
 ##########################################################
