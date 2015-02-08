@@ -351,7 +351,7 @@ class BinaryELMClassifier(object):
         self.input = input
         self.teacher = teacher
         self.n_input = len(input[0])
-        self.n_output = len(self.classes)
+        self.n_output = len(self.teacher)
 
         # weight and bias
         low, high = self.domain
