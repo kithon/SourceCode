@@ -195,7 +195,7 @@ class DecisionTree(object):
             count = 0
             for i,node in enumerate(exec_list):
                 parameter = literal_eval(linecache.getline(self.getFileName(index), 1))
-                node.save(parameter)
+                node.load(parameter)
                 index += 1
                 if not node.isTerminal():
                     count += node.getScore()
