@@ -374,7 +374,7 @@ class ExtremeDecisionTree(DecisionTree):
                  radius=1, num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, radius, num_function, condition, seed)
         if elm_hidden is None:
-            elm_hidden = [3 * (2*radius+1) * (2*radius+1) * 2]
+            elm_hidden = [(2*radius+1) * (2*radius+1)]
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
@@ -392,7 +392,7 @@ class ExtremeDecisionTree(DecisionTree):
         sample_index = random.sample(data, num)
         for temp in sample_index:
             i,x,y = temp
-            sample.append(self.picture[i].cropData(x, y, self.radius))
+            sample.append(self.picture[i].subCropData(x, y, self.radius))
         betas, biases = selmae.fit(sample)
 
         numpy_data = np.array(selmae.extraction(sample))
@@ -443,7 +443,7 @@ class ExtremeNode(Node):
             selected_dim, theta, betas, biases = threshold
             
         i,  x,  y = element
-        crop = self.picture[i].cropData(x, y, self.radius)
+        crop = self.picture[i].subCropData(x, y, self.radius)
         for i, beta in enumerate(betas):
             bias = biases[i]
             crop = sigmoid(np.dot(crop, beta.T) + bias)
@@ -485,7 +485,7 @@ class BinaryExtremeDecisionTree(DecisionTree):
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False):
         DecisionTree.__init__(self, radius, num_function, condition, seed)
         if elm_hidden is None:
-            elm_hidden = 3 * (2*radius+1) * (2*radius+1) * 2
+            elm_hidden = (2*radius+1) * (2*radius+1)
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
@@ -514,7 +514,7 @@ class BinaryExtremeDecisionTree(DecisionTree):
             one_index = random.sample(label, length)
             for temp in sample_index:
                 i,x,y = temp
-                sample_input.append(self.picture[i].cropData(x, y, self.radius))
+                sample_input.append(self.picture[i].subCropData(x, y, self.radius))
                 if self.picture[i].getSignal(x, y) in one_index:
                     sample_label.append(1)
                 else:
@@ -561,7 +561,7 @@ class BinaryExtremeNode(Node):
             weight, bias, beta = threshold
             
         i, x, y = element
-        crop = self.picture[i].cropData(x, y, self.radius)
+        crop = self.picture[i].subCropData(x, y, self.radius)
         crop = sigmoid(np.dot(weight.T, crop) + bias)
         crop = np.dot(beta.T, crop)
         return crop - 0.5
