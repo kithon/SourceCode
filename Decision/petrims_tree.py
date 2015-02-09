@@ -147,7 +147,7 @@ class DecisionTree(object):
             selected_dim = [selected_dx, selected_dy, selected_c]
             yield selected_dim, theta
 
-        
+    """
     def predict(self, data):
         index = 0
         while True:
@@ -176,7 +176,47 @@ class DecisionTree(object):
             if predict_signal == self.picture[i].getSignal(x,y):
                 count += 1
         return count * 1.0 / length
+    """
+    def score(self, picture, d_limit=None):
+        input = []
+        self.picture = picture
+        for i,p in enumerate(picture):
+            w,h = p.getSize()
+            input += [[i,j,k] for j in range(w) for k in range(h)]
 
+        wait_list = []
+        exec_list = [self.getNode(input, 0)]
+    
+        index = 0
+        fix_count = 0
+        current_depth = 0
+        length = len(input)
+        while len(exec_list):
+            count = 0
+            for i,node in enumerate(exec_list):
+                parameter = literal_eval(linecache.getline(self.getFileName(index), 1))
+                node.save(parameter)
+                index += 1
+                if not node.isTerminal():
+                    count += node.getScore()
+                    depth = node.getDepth() + 1
+                    l_data, l_label, r_data, r_label  = node.divide()
+                    wait_list.append(self.getNode(l_data, depth))
+                    wait_list.append(self.getNode(r_data, depth))
+                else:
+                    fix_count += node.getScore()
+                
+            count += fix_count
+            score = count * 1.0 / length
+            print_time("depth:%d score = %f" % (current_depth, score))
+            
+            exec_list = wait_list
+            wait_list = []
+            current_depth += 1
+    
+        return score
+
+    
     def info(self):
         if not self.node_length is None:
             print_time("Information: number of node = %d" % (self.node_length))
@@ -317,6 +357,14 @@ class Node(object):
         else:
             return self.l_index
 
+    def getScore(self):
+        score = 0
+        for i, element in enumerate(self.data):
+            i,x,y = element
+            if self.picture[i].getSignal(x,y) == self.label:
+                score += 1
+        return score
+        
     def isTerminal(self):
         return self.terminal
     
