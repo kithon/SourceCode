@@ -114,9 +114,10 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
 if __name__ == '__main__':
     # ----- parser description -----
     parser = argparse.ArgumentParser(description='Test eTRIMS-08 Segmentation Dataset (need etrims_tree.py)')
-    parser.add_argument("radius", type=int, default=3, nargs='?', help="set image radius")
+    parser.add_argument("radius", type=int, default=4, nargs='?', help="set image radius")
     parser.add_argument("size", type=int, default=60, nargs='?', help="set data size")
     parser.add_argument("limit", type=int, nargs='?', help="set depth limit")
+    parser.add_argument("-r", "--removeparam", action='store_true',  help="remove parameter")
     parser.add_argument("-u", "--unshuffle", action='store_true',  help="not shuffle dataset")
     parser.add_argument("-f", "--four", action='store_true',  help="use eTRIMS-04 dataset")
     parser.add_argument("-n", "--num", metavar="num", type=int, default=10,  help="set number of function")
@@ -126,11 +127,11 @@ if __name__ == '__main__':
     # ----- etrims_tree -----
     makedir()
     args = parser.parse_args()
+    
     t_args = map(lambda x:x in args.tree, ['d','e','b'])
     if True in t_args:
-        etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle,
+        etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, remove=args.removeparam, unshuffle=args.unshuffle,
                     four=args.four, num=args.num, parameter=args.parameter, t_args=t_args)
     else:
         print_time('etrims_test.py: error: argument -t/--tree: expected {d,e,b} argument')
-        
-    
+
