@@ -52,7 +52,7 @@ def load_etrims(radius, size, is08, shuffle):
     return train_set, test_set
 
 
-def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
+def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, t_args):
     # ----- initialize -----
     print_parameter([radius, size, d_limit, unshuffle, four, num, t_args])
     print_time('eTRIMS: radius=%d, depth_limit=%d, data_size=%d, num_func=%d' % (radius, d_limit, size, num))
@@ -63,7 +63,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
     # ----- Decision Tree -----
     if isDT:
         print_time('DecisionTree: init')
-        dt = DecisionTree(radius=radius, num_function=num)
+        dt = DecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('DecisionTree: train')
         dt.fit(train_set, d_limit=d_limit)
@@ -79,7 +79,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
     # ----- Extreme Decision Tree -----
     if isEDT:
         print_time('ExtremeDecisionTree: init')
-        edt = ExtremeDecisionTree(radius=radius, num_function=num)
+        edt = ExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('ExtremeDecisionTree: train')
         edt.fit(train_set, d_limit=d_limit)
@@ -94,7 +94,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
     # ----- Binary Extreme Decision Tree -----
     if isBEDT:
         print_time('BinaryExtremeDecisionTree: init')
-        bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num)
+        bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('BinaryExtremeDecisionTree: train')
         bedt.fit(train_set, d_limit=d_limit)
