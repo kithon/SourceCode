@@ -291,7 +291,7 @@ class Node(object):
         point = 0
         for i, element in enumerate(self.signal):
             i,x,y = element
-            if self.picture[i].getSignal(x,y) == self.label:
+            if self.sig_picture[i].getSignal(x,y) == self.label:
                 point += 1
                 
         if not self.isTerminal():
