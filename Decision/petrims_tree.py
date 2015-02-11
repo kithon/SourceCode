@@ -31,14 +31,15 @@ def fit_process(dic, index_list, node_list):
 ##########################################################
 
 class DecisionTree(object):
-    __slots__ = ['radius', 'num_function', 'condition',
+    __slots__ = ['radius', 'num_function', 'remove', 'condition',
                  'np_rng', 'd_limit', 'dir_name', 'file_name',
                  'picture', 'node_length', 'parameter_list']
-    def __init__(self, radius=None, num_function=10, condition='gini', seed=123):
+    def __init__(self, radius=None, num_function=10, remove=False, condition='gini', seed=123):
         if radius is None:
             Exception('Error: radius is None.')
         self.radius = radius
         self.num_function = num_function
+        self.remove = remove
         self.condition = condition
         self.np_rng = np.random.RandomState(seed)
         self.dir_name = 'decision/'
@@ -147,36 +148,6 @@ class DecisionTree(object):
             selected_dim = [selected_dx, selected_dy, selected_c]
             yield selected_dim, theta
 
-    """
-    def predict(self, data):
-        index = 0
-        while True:
-            node = self.getNode()
-            node.setPicture(self.picture)
-            parameter = literal_eval(linecache.getline(self.getFileName(index), 1))
-            node.load(parameter)
-            
-            if node.isTerminal():
-                #print "predict done"
-                return node.predict(data)
-            index = node.predict(data)
-
-    def score(self, picture):
-        #print "score"
-        self.picture = picture
-        input = []
-        for i,p in enumerate(picture):
-            w,h = p.getSize()
-            input += [[i,j,k] for j in range(w) for k in range(h)]
-        count = 0
-        length = len(input)
-        for temp in input:
-            i,x,y = temp
-            predict_signal = self.predict(temp)
-            if predict_signal == self.picture[i].getSignal(x,y):
-                count += 1
-        return count * 1.0 / length
-    """
     def score(self, picture, d_limit=None):
         input = []
         self.picture = picture
@@ -195,6 +166,8 @@ class DecisionTree(object):
             count = 0
             for i,node in enumerate(exec_list):
                 parameter = literal_eval(linecache.getline(self.getFileName(index), 1))
+                if self.remove:
+                    os.system('rm -f %s' % self.getFileName(index))
                 node.load(parameter)
                 index += 1
                 if not node.isTerminal():
@@ -397,13 +370,13 @@ class Node(object):
 ##########################################################
 
 class ExtremeDecisionTree(DecisionTree):
-    __slots__ = ['radius', 'num_function', 'condition',
+    __slots__ = ['radius', 'num_function', 'remove', 'condition',
                  'np_rng', 'd_limit', 'dir_name', 'file_name',
                  'picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
-                 radius=1, num_function=10, condition='gini', seed=123, visualize=False):
-        DecisionTree.__init__(self, radius, num_function, condition, seed)
+                 radius=1, num_function=10, remove=False, condition='gini', seed=123, visualize=False):
+        DecisionTree.__init__(self, radius, num_function, remove, condition, seed)
         if elm_hidden is None:
             elm_hidden = [3 * (2*radius+1) * (2*radius+1) * 2]
         self.elm_hidden = elm_hidden
@@ -508,13 +481,13 @@ class ExtremeNode(Node):
 ##########################################################
 
 class BinaryExtremeDecisionTree(DecisionTree):
-    __slots__ = ['radius', 'num_function', 'condition',
+    __slots__ = ['radius', 'num_function', 'remove', 'condition',
                  'np_rng', 'd_limit', 'dir_name', 'file_name',
                  'picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
-                 radius=None, num_function=10, condition='gini', seed=123, visualize=False):
-        DecisionTree.__init__(self, radius, num_function, condition, seed)
+                 radius=None, num_function=10, remove=False, condition='gini', seed=123, visualize=False):
+        DecisionTree.__init__(self, radius, num_function, remove, condition, seed)
         if elm_hidden is None:
             elm_hidden = 3 * (2*radius+1) * (2*radius+1) * 2
         self.elm_hidden = elm_hidden
