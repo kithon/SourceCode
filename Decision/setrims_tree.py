@@ -108,7 +108,8 @@ class DecisionTree(object):
 
             count = 0
             # -*- make child node -*-
-            for node in exec_list:
+            while len(exec_list):
+                node = exec_list.pop(0)
                 if not node.isTerminal():
                     node.setChildIndex(node_length)
                     node_length += 2
