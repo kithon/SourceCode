@@ -3,7 +3,7 @@ import os
 import random
 import argparse
 from PIL import Image
-from petrims_tree import DecisionTree, ExtremeDecisionTree, BinaryExtremeDecisionTree, Pic, makedir, print_time, print_parameter
+from setrims_tree import DecisionTree, ExtremeDecisionTree, BinaryExtremeDecisionTree, Pic, makedir, print_time, print_parameter
     
 ##########################################################
 ##  load_etrims
@@ -55,7 +55,8 @@ def load_etrims(radius, size, is08, shuffle):
 def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, t_args):
     # ----- initialize -----
     print_parameter([radius, size, d_limit, unshuffle, four, num, t_args])
-    print_time('eTRIMS: radius=%d, depth_limit=%d, data_size=%d, num_func=%d' % (radius, d_limit, size, num))
+    limit_string = str(d_limit) if not d_limit is None else 'None'
+    print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d' % (radius, limit_string, size, num))
     print_time('eTRIMS: load')
     train_set, test_set = load_etrims(radius=radius, size=size, is08=not four, shuffle=not unshuffle)
     isDT, isEDT, isBEDT = t_args
@@ -66,7 +67,11 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
         dt = DecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('DecisionTree: train')
-        dt.fit(train_set, test_set, d_limit=d_limit)
+        dt.fit(train_set, d_limit=d_limit)
+        
+        print_time('DecisionTree: test')
+        score = dt.score(test_set)
+        print_time('DecisionTree: score = %f' % score)
         
         print_time('DecisionTree: info')
         dt.info()
@@ -78,7 +83,11 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
         edt = ExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('ExtremeDecisionTree: train')
-        edt.fit(train_set, test_set, d_limit=d_limit)
+        edt.fit(train_set, d_limit=d_limit)
+        
+        print_time('ExtremeDecisionTree: test')
+        score = edt.score(test_set)
+        print_time('ExtremeDecisionTree: score = %f' % score)
         
         print_time('ExtremeDecisionTree: info')
         edt.info()
@@ -89,8 +98,12 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
         bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('BinaryExtremeDecisionTree: train')
-        bedt.fit(train_set, test_set, d_limit=d_limit)
-                
+        bedt.fit(train_set, d_limit=d_limit)
+        
+        print_time('BinaryExtremeDecisionTree: test')
+        score = bedt.score(test_set)
+        print_time('BinaryExtremeDecisionTree: score = %f' % score)
+        
         print_time('BinaryExtremeDecisionTree: info')
         bedt.info()
 
@@ -122,4 +135,5 @@ if __name__ == '__main__':
                     four=args.four, num=args.num, parameter=args.parameter, t_args=t_args)
     else:
         print_time('etrims_test.py: error: argument -t/--tree: expected {d,e,b} argument')
-
+        
+    
