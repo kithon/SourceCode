@@ -304,8 +304,8 @@ class Node(object):
                 lr_data[index].append(element)
                 lr_label[index].append(self.sig_picture[i].getSignal(x, y))
 
-                l_test, r_test = lr_data
-                l_ltest, r_ltest = lr_label
+            l_test, r_test = lr_data
+            l_ltest, r_ltest = lr_label
             return point, l_test, l_ltest, r_test, r_ltest 
         else:
             return point
