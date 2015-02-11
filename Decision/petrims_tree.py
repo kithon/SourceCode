@@ -2,11 +2,9 @@
 import os
 import random
 import datetime
-import linecache
 import numpy as np
 import collections
 import multiprocessing
-from ast import literal_eval
 from extreme import StackedELMAutoEncoder, BinaryELMClassifier
 
 DATE = datetime.datetime.today()
@@ -128,7 +126,7 @@ class DecisionTree(object):
             count += fix_count
             score = 1.0 * count / sig_length
             score_string = '%d %f' % (current_depth, score)
-            cmd = 'echo %s >> %sscore.log' % (score_string, self.file_name)
+            cmd = 'echo %s >> %s%sscore.log' % (score_string, DIR_NAME, self.file_name)
             os.system(cmd)
             
             # -*- update execution_list/wait_list/node_length/current_depth -*-
