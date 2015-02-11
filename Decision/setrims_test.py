@@ -3,7 +3,7 @@ import os
 import random
 import argparse
 from PIL import Image
-from petrims_tree import DecisionTree, ExtremeDecisionTree, BinaryExtremeDecisionTree, Pic, makedir, print_time, print_parameter
+from setrims_tree import DecisionTree, ExtremeDecisionTree, BinaryExtremeDecisionTree, Pic, makedir, print_time, print_parameter
     
 ##########################################################
 ##  load_etrims
