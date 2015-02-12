@@ -3,7 +3,7 @@ import os
 import random
 import argparse
 from PIL import Image
-from etrims_tree import DecisionTree, ExtremeDecisionTree, BinaryExtremeDecisionTree, Pic, makedir, print_time, print_parameter
+from etrims_tree import DecisionTree, ExtremeDecisionTree, BinaryExtremeDecisionTree, Pic, print_time, print_parameter
     
 ##########################################################
 ##  load_etrims
@@ -62,11 +62,20 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
     
     # ----- Decision Tree -----
     if isDT:
+        print_time('DecisionTree (overlap): init')
+        dt = DecisionTree(radius=radius, num_function=num, remove=remove)
+        
+        print_time('DecisionTree (overlap): train')
+        dt.fit(train_set, test_set, d_limit=d_limit, overlap=True)
+        
+        print_time('DecisionTree (overlap): info')
+        dt.info()
+
         print_time('DecisionTree: init')
         dt = DecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('DecisionTree: train')
-        dt.fit(train_set, test_set, d_limit=d_limit)
+        dt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
         
         print_time('DecisionTree: info')
         dt.info()
@@ -78,7 +87,7 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
         edt = ExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('ExtremeDecisionTree: train')
-        edt.fit(train_set, test_set, d_limit=d_limit)
+        edt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
         
         print_time('ExtremeDecisionTree: info')
         edt.info()
@@ -89,7 +98,7 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
         bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('BinaryExtremeDecisionTree: train')
-        bedt.fit(train_set, test_set, d_limit=d_limit)
+        bedt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
                 
         print_time('BinaryExtremeDecisionTree: info')
         bedt.info()
@@ -113,7 +122,6 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--tree", metavar='{d,e,b}', default='deb', help="run tree individually")
     
     # ----- etrims_tree -----
-    makedir()
     args = parser.parse_args()
     
     t_args = map(lambda x:x in args.tree, ['d','e','b'])

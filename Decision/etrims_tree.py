@@ -1,18 +1,10 @@
 # -*- coding: utf-8 -*-
-import os
 import random
 import datetime
 import numpy as np
 import collections
 import multiprocessing
 from extreme import StackedELMAutoEncoder, BinaryELMClassifier
-
-DATE = datetime.datetime.today()
-PREFFIX = 'etrims_'
-TIME = '%s_%s_%s_%s' % (DATE.month, DATE.day, DATE.hour, DATE.minute)
-DIR_NAME = PREFFIX + TIME + '/'
-LOG_NAME = DIR_NAME + 'test.log'
-PAR_NAME = DIR_NAME + 'parameter.log'
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
@@ -30,7 +22,7 @@ def fit_process(dic, index_list, node_list):
 
 class DecisionTree(object):
     __slots__ = ['radius', 'num_function', 'remove', 'condition',
-                 'np_rng', 'd_limit', 'dir_name', 'file_name',
+                 'np_rng', 'd_limit', 
                  'picture', 'sig_picture', 'node_length', 'parameter_list']
     def __init__(self, radius=None, num_function=10, remove=False, condition='gini', seed=123):
         if radius is None:
@@ -40,12 +32,7 @@ class DecisionTree(object):
         self.remove = remove
         self.condition = condition
         self.np_rng = np.random.RandomState(seed)
-        self.dir_name = 'decision/'
-        self.file_name = 'dt_'
     
-    def getFileName(self, index):
-        return '%s%s%s%d.log'% (DIR_NAME, self.dir_name, self.file_name, index)
-
     def getNode(self, data=None, signal=None, depth=None):
         return Node(data, signal, self.picture, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.condition)
             
@@ -90,7 +77,7 @@ class DecisionTree(object):
             num_process = min(core, len(exec_list))
 
             # -*- print depth -*-
-            print_time("depth:%d" % current_depth)
+            #print_time("depth:%d" % current_depth)
 
             # -*- distribute exec_list -*-
             for i in xrange(num_process):
@@ -130,8 +117,11 @@ class DecisionTree(object):
             count += fix_count
             score = 1.0 * count / sig_length
             score_string = '%d %f' % (current_depth, score)
+            print_time(score_string)
+            """
             cmd = 'echo %s >> %s%sscore.log' % (score_string, DIR_NAME, self.file_name)
             os.system(cmd)
+            """
             
             # -*- update execution_list/wait_list/node_length/current_depth -*-
             exec_list = wait_list
@@ -347,7 +337,7 @@ class Node(object):
 
 class ExtremeDecisionTree(DecisionTree):
     __slots__ = ['radius', 'num_function', 'remove', 'condition',
-                 'np_rng', 'd_limit', 'dir_name', 'file_name',
+                 'np_rng', 'd_limit', 
                  'picture', 'sig_picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
@@ -358,8 +348,6 @@ class ExtremeDecisionTree(DecisionTree):
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
-        self.dir_name = 'extreme/'
-        self.file_name = 'edt_'
 
     def getNode(self, data=None, signal=None, depth=None):
         return ExtremeNode(data, signal, self.picture, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
@@ -459,7 +447,7 @@ class ExtremeNode(Node):
 
 class BinaryExtremeDecisionTree(DecisionTree):
     __slots__ = ['radius', 'num_function', 'remove', 'condition',
-                 'np_rng', 'd_limit', 'dir_name', 'file_name',
+                 'np_rng', 'd_limit', 
                  'picture', 'sig_picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
@@ -470,8 +458,6 @@ class BinaryExtremeDecisionTree(DecisionTree):
         self.elm_hidden = elm_hidden
         self.elm_coef = elm_coef
         self.visualize = visualize
-        self.dir_name = 'binary/'
-        self.file_name = 'bedt_'
 
     def getNode(self, data=None, signal=None, depth=None):
         return BinaryExtremeNode(data, signal, self.picture, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
@@ -627,12 +613,16 @@ class Pic(object):
 ##########################################################
 ##  print
 ##########################################################
-
-def makedir():
-    if not os.path.exists(DIR_NAME):
-        cmd = 'mkdir %s' % DIR_NAME
-        os.system(cmd)
     
+def print_parameter(param):
+    print param
+    
+def print_time(message):
+    d = datetime.datetime.today()
+    string = '%s/%s/%s %s:%s:%s.%s %s' % (d.year, d.month, d.day, d.hour, d.minute, d.second, d.microsecond, message)
+    print string
+    
+"""    
 def print_parameter(param):
     cmd = 'echo %s >> %s' % (param, PAR_NAME)
     os.system(cmd)
@@ -642,4 +632,4 @@ def print_time(message):
     string = '%s/%s/%s %s:%s:%s.%s %s' % (d.year, d.month, d.day, d.hour, d.minute, d.second, d.microsecond, message)
     cmd = 'echo %s >> %s' % (string, LOG_NAME)
     os.system(cmd)
-
+"""
