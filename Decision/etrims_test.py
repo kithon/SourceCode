@@ -55,7 +55,7 @@ def load_etrims(radius, size, is08, shuffle):
 def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, t_args):
     # ----- initialize -----
     print_parameter([radius, size, d_limit, unshuffle, four, num, t_args])
-    print_time('eTRIMS: radius=%d, depth_limit=%d, data_size=%d, num_func=%d' % (radius, d_limit, size, num))
+    print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d' % (radius, str(d_limit), size, num))
     print_time('eTRIMS: load')
     train_set, test_set = load_etrims(radius=radius, size=size, is08=not four, shuffle=not unshuffle)
     isDT, isEDT, isBEDT = t_args
