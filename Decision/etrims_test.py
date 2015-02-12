@@ -52,7 +52,7 @@ def load_etrims(radius, size, is08, shuffle):
     return train_set, test_set
 
 
-def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
+def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, t_args):
     # ----- initialize -----
     print_parameter([radius, size, d_limit, unshuffle, four, num, t_args])
     print_time('eTRIMS: radius=%d, depth_limit=%d, data_size=%d, num_func=%d' % (radius, d_limit, size, num))
@@ -63,14 +63,10 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
     # ----- Decision Tree -----
     if isDT:
         print_time('DecisionTree: init')
-        dt = DecisionTree(radius=radius, num_function=num)
+        dt = DecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('DecisionTree: train')
-        dt.fit(train_set, d_limit=d_limit)
-        
-        print_time('DecisionTree: test')
-        score = dt.score(test_set)
-        print_time('DecisionTree: score = %f' % score)
+        dt.fit(train_set, test_set, d_limit=d_limit)
         
         print_time('DecisionTree: info')
         dt.info()
@@ -79,14 +75,10 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
     # ----- Extreme Decision Tree -----
     if isEDT:
         print_time('ExtremeDecisionTree: init')
-        edt = ExtremeDecisionTree(radius=radius, num_function=num)
+        edt = ExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('ExtremeDecisionTree: train')
-        edt.fit(train_set, d_limit=d_limit)
-        
-        print_time('ExtremeDecisionTree: test')
-        score = edt.score(test_set)
-        print_time('ExtremeDecisionTree: score = %f' % score)
+        edt.fit(train_set, test_set, d_limit=d_limit)
         
         print_time('ExtremeDecisionTree: info')
         edt.info()
@@ -94,15 +86,11 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
     # ----- Binary Extreme Decision Tree -----
     if isBEDT:
         print_time('BinaryExtremeDecisionTree: init')
-        bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num)
+        bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num, remove=remove)
         
         print_time('BinaryExtremeDecisionTree: train')
-        bedt.fit(train_set, d_limit=d_limit)
-        
-        print_time('BinaryExtremeDecisionTree: test')
-        score = bedt.score(test_set)
-        print_time('BinaryExtremeDecisionTree: score = %f' % score)
-        
+        bedt.fit(train_set, test_set, d_limit=d_limit)
+                
         print_time('BinaryExtremeDecisionTree: info')
         bedt.info()
 
@@ -114,23 +102,24 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args):
 if __name__ == '__main__':
     # ----- parser description -----
     parser = argparse.ArgumentParser(description='Test eTRIMS-08 Segmentation Dataset (need etrims_tree.py)')
-    parser.add_argument("radius", type=int, default=3, nargs='?', help="set image radius")
+    parser.add_argument("radius", type=int, default=2, nargs='?', help="set image radius")
     parser.add_argument("size", type=int, default=60, nargs='?', help="set data size")
     parser.add_argument("limit", type=int, nargs='?', help="set depth limit")
+    parser.add_argument("-r", "--removeparam", action='store_true',  help="remove parameter")
     parser.add_argument("-u", "--unshuffle", action='store_true',  help="not shuffle dataset")
     parser.add_argument("-f", "--four", action='store_true',  help="use eTRIMS-04 dataset")
-    parser.add_argument("-n", "--num", metavar="num", type=int, default=10,  help="set number of function")
+    parser.add_argument("-n", "--num", metavar="num", type=int, default=5,  help="set number of function")
     parser.add_argument("-p", "--parameter", metavar='file', type=str, help="set trained parameter")
     parser.add_argument("-t", "--tree", metavar='{d,e,b}', default='deb', help="run tree individually")
-
+    
     # ----- etrims_tree -----
     makedir()
     args = parser.parse_args()
+    
     t_args = map(lambda x:x in args.tree, ['d','e','b'])
     if True in t_args:
-        etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle,
+        etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, remove=args.removeparam, unshuffle=args.unshuffle,
                     four=args.four, num=args.num, parameter=args.parameter, t_args=t_args)
     else:
         print_time('etrims_test.py: error: argument -t/--tree: expected {d,e,b} argument')
-        
-    
+
