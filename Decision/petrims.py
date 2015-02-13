@@ -48,9 +48,12 @@ class DecisionTree(object):
 
     def mkdir(self):
         path = DIR_NAME + self.dir_name
+        if not os.path.exists(DIR_NAME):
+            cmd = 'mkdir %s' % DIR_NAME
+            os.system(cmd)
         if not os.path.exists(path):
             cmd = 'mkdir %s' % path
-            os.system(cmd)
+            os.system(cmd)            
         print_parameter(path, self.file_name)
     
     def getFileName(self, index):
