@@ -111,6 +111,7 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
 if __name__ == '__main__':
     # ----- parser description -----
     parser = argparse.ArgumentParser(description='Test eTRIMS-08 Segmentation Dataset (need etrims_tree.py)')
+    parser.add_argument("name", type=str, default='result.log', help="set file name")
     parser.add_argument("radius", type=int, default=2, nargs='?', help="set image radius")
     parser.add_argument("size", type=int, default=60, nargs='?', help="set data size")
     parser.add_argument("limit", type=int, nargs='?', help="set depth limit")
@@ -123,6 +124,7 @@ if __name__ == '__main__':
     
     # ----- etrims_tree -----
     args = parser.parse_args()
+    FILE_NAME = args.name
     
     t_args = map(lambda x:x in args.tree, ['d','e','b'])
     if True in t_args:

@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
+import os
 import random
 import datetime
 import numpy as np
 import collections
 import multiprocessing
 from extreme import StackedELMAutoEncoder, BinaryELMClassifier
+
+FILE_NAME = 'test.log'
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
@@ -613,7 +616,7 @@ class Pic(object):
 ##########################################################
 ##  print
 ##########################################################
-    
+"""    
 def print_parameter(param):
     print param
     
@@ -624,12 +627,13 @@ def print_time(message):
     
 """    
 def print_parameter(param):
-    cmd = 'echo %s >> %s' % (param, PAR_NAME)
+    cmd = 'echo %s >> %s' % (param, FILE_NAME)
     os.system(cmd)
     
 def print_time(message):
     d = datetime.datetime.today()
     string = '%s/%s/%s %s:%s:%s.%s %s' % (d.year, d.month, d.day, d.hour, d.minute, d.second, d.microsecond, message)
-    cmd = 'echo %s >> %s' % (string, LOG_NAME)
+    cmd = 'echo %s >> %s' % (string, FILE_NAME)
     os.system(cmd)
-"""
+
+    
