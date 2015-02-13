@@ -826,5 +826,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     t_args = map(lambda x:x in args.tree, ['d','e','b'])
-    etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, remove=args.removeparam, unshuffle=args.unshuffle,
+    etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle,
                     four=args.four, num=args.num, parameter=args.parameter, t_args=t_args, file_name=args.name)
