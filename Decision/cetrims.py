@@ -696,6 +696,7 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
     
     # ----- Decision Tree -----
     if isDT:
+        """
         print_time('DecisionTree overlap: init', file_name)
         dt = DecisionTree(radius=radius, num_function=num, remove=remove, name=file_name)
         
@@ -704,6 +705,7 @@ def etrims_tree(radius, size, d_limit, remove, unshuffle, four, num, parameter, 
         
         print_time('DecisionTree overlap: info', file_name)
         dt.info()
+        """
 
         print_time('DecisionTree: init', file_name)
         dt = DecisionTree(radius=radius, num_function=num, remove=remove, name=file_name)
