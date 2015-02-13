@@ -87,7 +87,8 @@ class DecisionTree(object):
             print_time("depth:%d" % current_depth, self.file_name)
 
             # -*- make child node -*-
-            for node in exec_list:
+            while len(exec_list):
+                node = exec_list.pop(0)
                 node.fit()
                 if not node.isTerminal():
                     node.setChildIndex(node_length)
