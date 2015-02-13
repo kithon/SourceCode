@@ -744,7 +744,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         dt = DecisionTree(radius=radius, num_function=num, file_name=file_name)
         
         print_time('DecisionTree overlap: train', file_name)
-        dt.fit(train_set, d_limit=d_limit, overlap=True)
+        dt.fit(train_set, test_set, d_limit=d_limit, overlap=True)
         
         print_time('DecisionTree overlap: test', file_name)
         score = dt.score(test_set)
@@ -758,7 +758,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         dt = DecisionTree(radius=radius, num_function=num, file_name=file_name)
         
         print_time('DecisionTree: train', file_name)
-        dt.fit(train_set, d_limit=d_limit, overlap=False)
+        dt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
         
         print_time('DecisionTree: info', file_name)
         dt.info()
@@ -770,7 +770,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         edt = ExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
         
         print_time('ExtremeDecisionTree: train', file_name)
-        edt.fit(train_set, d_limit=d_limit, overlap=False)
+        edt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
 
         print_time('ExtremeDecisionTree: info', file_name)
         edt.info()
@@ -781,7 +781,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
         
         print_time('BinaryExtremeDecisionTree: train', file_name)
-        bedt.fit(train_set, d_limit=d_limit, overlap=False)
+        bedt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
         
         print_time('BinaryExtremeDecisionTree: info', file_name)
         bedt.info()
