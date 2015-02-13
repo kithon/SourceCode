@@ -79,16 +79,39 @@ class DecisionTree(object):
 
         # -*- current_depth, core -*-
         current_depth = 0
+        core = multiprocessing.cpu_count()
 
         # ----- fit processing -----
+        #f = open(self.file_name, 'w')
         index = 0
         while len(exec_list):
+            # -*- initialize jobs, dic -*-
+            jobs = []
+            dic = multiprocessing.Manager().dict()
+            num_process = 1 #min(core, len(exec_list))
+
             # -*- print depth -*-
             print_time("depth:%d" % current_depth, self.file_name)
 
+            # -*- distribute exec_list -*-
+            for i in xrange(num_process):
+                index_list = range(i, len(exec_list), num_process)
+                node_list = [exec_list[k] for k in index_list]
+                jobs.append(multiprocessing.Process(target=fit_process, args=(dic, index_list, node_list)))
+
+            # -*- multiprocessing -*-
+            for j in jobs:
+                j.start()
+            for j in jobs:
+                j.join()
+
+            # -*- set parameter -*-
+            for i,node in enumerate(exec_list):
+                parameter = dic.get(i)
+                node.load(parameter)
+
             # -*- make child node -*-
             for node in exec_list:
-                node.fit()
                 if not node.isTerminal():
                     node.setChildIndex(node_length)
                     node_length += 2
