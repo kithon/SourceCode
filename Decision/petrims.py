@@ -747,6 +747,7 @@ def load_etrims(radius, size, is08, shuffle, name):
     # ----- finish -----
     print_parameter(train_index, name)
     print_time("eTRIMS: train=%d test=%d" % (len(train_set), len(test_set)), name)
+    return train_set, test_set
 
 
 def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, file_name):
