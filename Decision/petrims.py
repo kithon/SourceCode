@@ -72,7 +72,7 @@ class DecisionTree(object):
             for index in xrange(s_index, e_index):
                 input_list = [list(x) for x in input.iterkeys() if input[x] == index]
                 signal_list = [list(x) for x in signal.iterkeys() if signal[x] == index]
-                node = self.getNode(input_list, current_depth)
+                node = self.getNode(input_list, signal_list, current_depth)
                 node.fit()
                 point = node.getScore()
                 if not node.isTerminal():
