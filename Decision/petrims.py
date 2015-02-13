@@ -41,7 +41,6 @@ class DecisionTree(object):
     def fit(self, picture, sig_picture, d_limit=None, overlap=True):
         # ----- initialize -----
         # -*- input, picture, param, d_limit -*-
-        self.mkdir()
         self.picture = picture
         self.sig_picture = sig_picture
         self.d_limit = d_limit
