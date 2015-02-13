@@ -79,7 +79,7 @@ class DecisionTree(object):
                     count += point
                     node.setChildIndex(node_length)
                     l_data, l_label, r_data, r_label = node.divide()
-                    l_sign, l_pred,  r_sign, r_pred  = node.divide(data=signal_list)
+                    l_sign, l_pred,  r_sign, r_pred  = node.divide(data=signal_list, picture=self.sig_picture)
                     l_index, r_index = node.getChildIndex()
                     for l in l_data:
                         input[tuple(l)] = l_index
@@ -263,10 +263,12 @@ class Node(object):
                 minimum = temp
         self.selected_dim, self.theta = thresholds[index]
 
-    def divide(self, data=None, threshold=None):
+    def divide(self, data=None, threshold=None, picture=None):
         # set data
         if data is None:
             data = self.data
+        if picture is None:
+            picture = self.picture
 
         # divide data and label
         lr_data = [[], []]
@@ -275,14 +277,14 @@ class Node(object):
             #print element
             index = (self.function(element, threshold) > 0)
             lr_data[index].append(element)
-            lr_label[index].append(self.picture[element[0]].getSignal(element[1], element[2]))
+            lr_label[index].append(picture[element[0]].getSignal(element[1], element[2]))
             #print lr_label, index, label, i
 
         l_data, r_data = lr_data
         l_label, r_label = lr_label
         #print self.depth, len(l_data), len(r_data)
         return l_data, l_label, r_data, r_label
-        
+
     def function(self, element, threshold=None):
         # set threshold
         if threshold is None:
