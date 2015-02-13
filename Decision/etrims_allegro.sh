@@ -1,5 +1,6 @@
 #/bin/sh
 
+
 # allegro
 python etrims.py test_allegro/result_1.log 2> test_allegro/error_1.log
 python etrims.py test_allegro/result_2.log 2> test_allegro/error_2.log

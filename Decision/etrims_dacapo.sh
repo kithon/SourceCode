@@ -1,5 +1,6 @@
 #/bin/sh
 
+
 # dacapo
 python etrims.py test_dacapo/result_1.log 2> test_dacapo/error_1.log
 python etrims.py test_dacapo/result_2.log 2> test_dacapo/error_2.log
