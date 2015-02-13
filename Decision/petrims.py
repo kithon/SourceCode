@@ -50,7 +50,7 @@ class DecisionTree(object):
     def getFileName(self, index):
         return '%snode_%d.log'% (self.dir_name, index)
     
-    def clearFile(self)
+    def clearFile(self):
         path = self.dir_name
         cmd = 'rm -f %s*' % path
         os.system(cmd)
