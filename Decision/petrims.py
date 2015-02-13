@@ -35,8 +35,8 @@ class DecisionTree(object):
         self.dir_name = 'decision/'
         self.file_name = file_name
 
-    def getNode(self, data=None, depth=None):
-        return Node(data, self.picture, depth, self.generate_threshold, self.d_limit, self.condition)
+    def getNode(self, data=None, signal=None, depth=None):
+        return Node(data, self.picture, signal, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.condition)
             
     def fit(self, picture, sig_picture, d_limit=None, overlap=True):
         # ----- initialize -----
