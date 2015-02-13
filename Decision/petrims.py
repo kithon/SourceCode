@@ -2,21 +2,11 @@
 import os
 import random
 import datetime
-import linecache
 import numpy as np
 import collections
-import multiprocessing
 import argparse
 from PIL import Image
-from ast import literal_eval
 from extreme import StackedELMAutoEncoder, BinaryELMClassifier
-
-DATE = datetime.datetime.today()
-PREFFIX = 'etrims_'
-TIME = '%s_%s_%s_%s' % (DATE.month, DATE.day, DATE.hour, DATE.minute)
-DIR_NAME = PREFFIX + TIME + '/'
-LOG_NAME = DIR_NAME + 'test.log'
-PAR_NAME = DIR_NAME + 'parameter.log'
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
@@ -26,7 +16,6 @@ def fit_process(dic, index_list, node_list):
         node.fit()
         parameter = node.save()
         dic.update({index_list[i]: parameter})
-
     
 ##########################################################
 ##  Decision Tree (for etrims)
@@ -35,7 +24,7 @@ def fit_process(dic, index_list, node_list):
 class DecisionTree(object):
     __slots__ = ['radius', 'num_function', 'condition',
                  'np_rng', 'd_limit', 'dir_name', 'file_name',
-                 'picture', 'node_length', 'parameter_list']
+                 'picture','sig_picture', 'node_length', 'parameter_list']
     def __init__(self, radius=None, num_function=10, condition='gini', seed=123, file_name=None):
         if radius is None:
             Exception('Error: radius is None.')
@@ -46,73 +35,72 @@ class DecisionTree(object):
         self.dir_name = 'decision/'
         self.file_name = file_name
 
-    def mkdir(self):
-        path = DIR_NAME + self.dir_name
-        if not os.path.exists(DIR_NAME):
-            cmd = 'mkdir %s' % DIR_NAME
-            os.system(cmd)
-        if not os.path.exists(path):
-            cmd = 'mkdir %s' % path
-            os.system(cmd)            
-        print_parameter(path, self.file_name)
-    
-    def getFileName(self, index):
-        return '%s%snode_%d.log'% (DIR_NAME, self.dir_name, index)
-
     def getNode(self, data=None, depth=None):
         return Node(data, self.picture, depth, self.generate_threshold, self.d_limit, self.condition)
             
-    def fit(self, picture, d_limit=None, overlap=True):
+    def fit(self, picture, sig_picture, d_limit=None, overlap=True):
         # ----- initialize -----
         # -*- input, picture, param, d_limit -*-
         self.mkdir()
         self.picture = picture
+        self.sig_picture = sig_picture
         self.d_limit = d_limit
-        input = []
+        input = {}
         for i,p in enumerate(picture):
             w,h = p.getSize()
             if overlap:
-                input += [[i,j,k] for j in range(w) for k in range(h)]
+                input = {(i,j,k):0 for j in xrange(w) for k in xrange(h)}
             else:
-                input += [[i,j,k] for j in range(self.radius, w, 2*self.radius+1) for k in range(self.radius, h, 2*self.radius+1)]
+                input = {(i,j,k):0 for j in xrange(self.radius, w, 2*self.radius+1) for k in xrange(self.radius, h, 2*self.radius+1)}
+
+        count = 0
+        fix_count = 0
+        signal = {}
+        for i,p in enumerate(sig_picture):
+            w,h = p.getSize()
+            signal = {(i,j,k):0 for j in xrange(w) for k in xrange(h)}
+        length = len(signal)
 
         # -*- execution_list, wait_list, node_length -*-
-        exec_list = [self.getNode(input, 0)]
-        wait_list = []
-        node_length = len(exec_list)
+        node_length = 1
 
-        # -*- current_depth, core -*-
+        # -*- current_depth, index -*-
         current_depth = 0
-
-        # ----- fit processing -----
-        index = 0
-        while len(exec_list):
-            # -*- print depth -*-
-            print_time("depth:%d" % current_depth, self.file_name)
-
-            # -*- make child node -*-
-            while len(exec_list):
-                node = exec_list.pop(0)
+        s_index = 0
+        e_index = 1
+        while s_index < e_index:
+            count = 0
+            for index in xrange(s_index, e_index):
+                input_list = [list(x) for x in input.iterkeys() if input[x] == index]
+                signal_list = [list(x) for x in signal.iterkeys() if signal[x] == index]
+                node = self.getNode(input_list, current_depth)
                 node.fit()
+                point = node.getScore()
                 if not node.isTerminal():
+                    count += point
                     node.setChildIndex(node_length)
-                    node_length += 2
-                    l_data, l_label, r_data, r_label  = node.divide()
-                    depth = node.getDepth() + 1
-                    wait_list.append(self.getNode(l_data, depth))
-                    wait_list.append(self.getNode(r_data, depth))
+                    l_data, l_label, r_data, r_label = node.divide()
+                    l_sign, l_pred,  r_sign, r_pred  = node.divide(data=signal_list)
+                    l_index, r_index = node.getChildIndex()
+                    for l in l_data:
+                        input[tuple(l)] = l_index
+                    for r in r_data:
+                        input[tuple(r)] = r_index
+                    for l in l_sign:
+                        signal[tuple(l)] = l_index
+                    for r in r_sign:
+                        signal[tuple(r)] = r_index                        
+                else:
+                    fix_count += point            
 
-                # -*- write node's data in self.dile_name -*-
-                f = open(self.getFileName(index), 'w')
-                f.write(str(node.save()))
-                f.close()
-                index += 1
-                #f.write(str(node.save()) + '\n')
-            
-            # -*- update execution_list/wait_list/node_length/current_depth -*-
-            exec_list = wait_list
-            wait_list = []
+            count += fix_count
+            score = count * 1.0 / length
+            print_time("depth:%d score = %f" % (current_depth, score), self.file_name)
+                    
+            # -*- update current_depth, index -*-
             current_depth += 1
+            s_index = e_index
+            e_index = node_length
 
         # -*- set node_length -*-
         self.node_length = node_length
@@ -132,7 +120,7 @@ class DecisionTree(object):
             
             selected_dim = [selected_dx, selected_dy, selected_c]
             yield selected_dim, theta
-
+    """
     def predict(self, data):
         index = 0
         while True:
@@ -163,43 +151,46 @@ class DecisionTree(object):
         return count * 1.0 / length
 
     """
+    """
     def score(self, picture, d_limit=None):
-        input = []
+        input = {}
         self.picture = picture
         for i,p in enumerate(picture):
             w,h = p.getSize()
-            input += [[i,j,k] for j in range(w) for k in range(h)]
+            input = {(i,j,k):0 for j in range(w) for k in range(h)}
 
-        wait_list = []
-        exec_list = [self.getNode(input, 0)]
-    
-        index = 0
+        count = 0
         fix_count = 0
         current_depth = 0
         length = len(input)
-        while len(exec_list):
-            count = 0
-            for i,node in enumerate(exec_list):
-                parameter = literal_eval(linecache.getline(self.getFileName(index), 1))
-                node.load(parameter)
-                index += 1
-                if not node.isTerminal():
-                    count += node.getScore()
-                    depth = node.getDepth() + 1
-                    l_data, l_label, r_data, r_label  = node.divide()
-                    wait_list.append(self.getNode(l_data, depth))
-                    wait_list.append(self.getNode(r_data, depth))
-                else:
-                    fix_count += node.getScore()
+        for index in xrange(self.node_length):
+            input_list = [list(x) for x in input.iterkeys() if input[x] == index]
+            parameter = literal_eval(linecache.getline(self.getFileName(index), 1))
+            node = self.getNode(input_list, current_depth)
+            node.setPicture(picture)
+            node.load(parameter)
+            if current_depth < node.getDepth():
+                count += fix_count
+                score = count * 1.0 / length
+                print_time("depth:%d score = %f" % (current_depth, score), self.file_name)
+                current_depth = node.getDepth()
+                count = 0
                 
-            count += fix_count
-            score = count * 1.0 / length
-            print_time("depth:%d score = %f" % (current_depth, score), self.file_name)
-            
-            exec_list = wait_list
-            wait_list = []
-            current_depth += 1
-    
+            point = node.getScore()
+            if not node.isTerminal():
+                count += point
+                l_data, l_label, r_data, r_label = node.divide()
+                l_index, r_index = node.getChildIndex()
+                for l in l_data:
+                    input[tuple(l)] = l_index
+                for r in r_data:
+                    input[tuple(r)] = r_index
+            else:
+                fix_count += point
+
+        count += fix_count
+        score = count * 1.0 / length
+        print_time("depth:%d score = %f" % (current_depth, score), self.file_name)
         return score
     """
     
@@ -215,13 +206,15 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
+    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
                  'd_limit', 'condition', 'l_index', 'r_index',
                  'terminal', 'label', 'selected_dim', 'theta']
-    def __init__(self, data=None, picture=None, depth=None, gen_threshold=None, d_limit=None, condition=None):
+    def __init__(self, data=None, picture=None, signal=None, sig_picture=None, depth=None, gen_threshold=None, d_limit=None, condition=None):
         if not data is None:
             self.data = data
             self.picture = picture
+            self.signal = signal
+            self.sig_picture = sig_picture
             self.depth = depth
             self.gen_threshold = gen_threshold
             self.d_limit = d_limit
@@ -345,9 +338,9 @@ class Node(object):
 
     def getScore(self):
         score = 0
-        for i, element in enumerate(self.data):
+        for i, element in enumerate(self.signal):
             i,x,y = element
-            if self.picture[i].getSignal(x,y) == self.label:
+            if self.sig_picture[i].getSignal(x,y) == self.label:
                 score += 1
         return score
         
@@ -364,7 +357,11 @@ class Node(object):
         # set child index
         self.l_index = index
         self.r_index = index+1
-        
+
+    def getChildIndex(self):
+        # get child index
+        return self.l_index, self.r_index
+
     def save(self):
         # return parameter
         detail = [] if self.isTerminal() else [self.l_index, self.r_index, self.selected_dim, self.theta]
@@ -385,7 +382,7 @@ class Node(object):
 class ExtremeDecisionTree(DecisionTree):
     __slots__ = ['radius', 'num_function', 'condition',
                  'np_rng', 'd_limit', 'dir_name', 'file_name',
-                 'picture', 'node_length', 'parameter_list',
+                 'picture', 'sig_picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=1, num_function=10, condition='gini', seed=123, visualize=False, file_name=None):
@@ -398,8 +395,8 @@ class ExtremeDecisionTree(DecisionTree):
         self.dir_name = 'extreme/'
         
 
-    def getNode(self, data=None, depth=None):
-        return ExtremeNode(data, self.picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
+    def getNode(self, data=None, signal=None, depth=None):
+        return ExtremeNode(data, self.picture, signal, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
     
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
@@ -427,12 +424,12 @@ class ExtremeDecisionTree(DecisionTree):
 ##########################################################
 
 class ExtremeNode(Node):
-    __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
+    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
                  'd_limit', 'radius', 'condition', 'l_index', 'r_index',
                  'terminal', 'label', 'selected_dim', 'theta',
                  'betas', 'biases']
-    def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
-        Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
+    def __init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, radius, condition):
+        Node.__init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
 
     def opt_threshold(self, data, thresholds):
@@ -496,7 +493,7 @@ class ExtremeNode(Node):
 class BinaryExtremeDecisionTree(DecisionTree):
     __slots__ = ['radius', 'num_function', 'condition',
                  'np_rng', 'd_limit', 'dir_name', 'file_name',
-                 'picture', 'node_length', 'parameter_list',
+                 'picture', 'sig_picture', 'node_length', 'parameter_list',
                  'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False, file_name=None):
@@ -508,8 +505,8 @@ class BinaryExtremeDecisionTree(DecisionTree):
         self.visualize = visualize
         self.dir_name = 'binary/'
 
-    def getNode(self, data=None, depth=None):
-        return BinaryExtremeNode(data, self.picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
+    def getNode(self, data=None, signal=None, depth=None):
+        return BinaryExtremeNode(data, self.picture, signal, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
     
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
@@ -545,12 +542,12 @@ class BinaryExtremeDecisionTree(DecisionTree):
 ##########################################################
 
 class BinaryExtremeNode(Node):
-    __slots__ = ['data', 'picture', 'depth', 'gen_threshold',
+    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
                  'd_limit', 'radius', 'condition', 'l_index', 'r_index',
                  'terminal', 'label',
                  'weight', 'bias', 'beta']
-    def __init__(self, data, picture, depth, gen_threshold, d_limit, radius, condition):
-        Node.__init__(self, data, picture, depth, gen_threshold, d_limit, condition)
+    def __init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, radius, condition):
+        Node.__init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
 
     def opt_threshold(self, data, thresholds):
@@ -763,10 +760,6 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         print_time('DecisionTree: train', file_name)
         dt.fit(train_set, d_limit=d_limit, overlap=False)
         
-        print_time('DecisionTree: test', file_name)
-        score = dt.score(test_set)
-        print_time('DecisionTree: score = %f' % score, file_name)
-        
         print_time('DecisionTree: info', file_name)
         dt.info()
     
@@ -778,11 +771,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         
         print_time('ExtremeDecisionTree: train', file_name)
         edt.fit(train_set, d_limit=d_limit, overlap=False)
-        
-        print_time('ExtremeDecisionTree: test', file_name)
-        score = edt.score(test_set)
-        print_time('ExtremeDecisionTree: score = %f' % score, file_name)
-        
+
         print_time('ExtremeDecisionTree: info', file_name)
         edt.info()
 
@@ -793,10 +782,6 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         
         print_time('BinaryExtremeDecisionTree: train', file_name)
         bedt.fit(train_set, d_limit=d_limit, overlap=False)
-        
-        print_time('BinaryExtremeDecisionTree: test', file_name)
-        score = bedt.score(test_set)
-        print_time('BinaryExtremeDecisionTree: score = %f' % score, file_name)
         
         print_time('BinaryExtremeDecisionTree: info', file_name)
         bedt.info()
