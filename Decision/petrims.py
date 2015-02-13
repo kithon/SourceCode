@@ -11,6 +11,13 @@ from PIL import Image
 from ast import literal_eval
 from extreme import StackedELMAutoEncoder, BinaryELMClassifier
 
+DATE = datetime.datetime.today()
+PREFFIX = 'etrims_'
+TIME = '%s_%s_%s_%s' % (DATE.month, DATE.day, DATE.hour, DATE.minute)
+DIR_NAME = PREFFIX + TIME + '/'
+LOG_NAME = DIR_NAME + 'test.log'
+PAR_NAME = DIR_NAME + 'parameter.log'
+
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
 
@@ -40,15 +47,14 @@ class DecisionTree(object):
         self.file_name = file_name
 
     def mkdir(self):
-        path = self.dir_name
+        path = DIR_NAME + self.dir_name
         if not os.path.exists(path):
             cmd = 'mkdir %s' % path
             os.system(cmd)
-        self.clearFile()
         print_parameter(path, self.file_name)
     
     def getFileName(self, index):
-        return '%snode_%d.log'% (self.dir_name, index)
+        return '%s%snode_%d.log'% (DIR_NAME, self.dir_name, index)
 
     def getNode(self, data=None, depth=None):
         return Node(data, self.picture, depth, self.generate_threshold, self.d_limit, self.condition)
