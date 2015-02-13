@@ -731,7 +731,7 @@ def load_etrims(radius, size, is08, shuffle, name):
     return train_set, test_set
 
 
-def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, file_name):
+def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_args, file_name):
     # ----- initialize -----
     print_parameter([radius, size, d_limit, unshuffle, four, num, t_args], file_name)
     print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d' % (radius, str(d_limit), size, num), file_name)
@@ -740,27 +740,12 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
     isDT, isEDT, isBEDT = t_args
     
     # ----- Decision Tree -----
-    if isDT:
-        """
-        print_time('DecisionTree overlap: init', file_name)
-        dt = DecisionTree(radius=radius, num_function=num, file_name=file_name)
-        
-        print_time('DecisionTree overlap: train', file_name)
-        dt.fit(train_set, test_set, d_limit=d_limit, overlap=True)
-        
-        print_time('DecisionTree overlap: test', file_name)
-        score = dt.score(test_set)
-        print_time('DecisionTree overlap: score = %f' % score, file_name)
-        
-        print_time('DecisionTree overlap: info', file_name)
-        dt.info()
-        """
-        
+    if isDT:        
         print_time('DecisionTree: init', file_name)
         dt = DecisionTree(radius=radius, num_function=num, file_name=file_name)
         
         print_time('DecisionTree: train', file_name)
-        dt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
+        dt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
         
         print_time('DecisionTree: info', file_name)
         dt.info()
@@ -772,7 +757,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         edt = ExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
         
         print_time('ExtremeDecisionTree: train', file_name)
-        edt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
+        edt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
 
         print_time('ExtremeDecisionTree: info', file_name)
         edt.info()
@@ -783,7 +768,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
         
         print_time('BinaryExtremeDecisionTree: train', file_name)
-        bedt.fit(train_set, test_set, d_limit=d_limit, overlap=False)
+        bedt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
         
         print_time('BinaryExtremeDecisionTree: info', file_name)
         bedt.info()
@@ -797,11 +782,11 @@ if __name__ == '__main__':
     # ----- parser description -----
     parser = argparse.ArgumentParser(description='Test eTRIMS-08 Segmentation Dataset (need etrims_tree.py)')
     parser.add_argument("name", type=str, default='result.log', help="set file name")
-    parser.add_argument("radius", type=int, default=2, nargs='?', help="set image radius")
+    parser.add_argument("radius", type=int, default=5, nargs='?', help="set image radius")
     parser.add_argument("size", type=int, default=60, nargs='?', help="set data size")
     parser.add_argument("limit", type=int, nargs='?', help="set depth limit")
-    parser.add_argument("-r", "--removeparam", action='store_true',  help="remove parameter")
     parser.add_argument("-u", "--unshuffle", action='store_true',  help="not shuffle dataset")
+    parser.add_argument("-c", "--cram", action='store_false',  help="not overlap")
     parser.add_argument("-f", "--four", action='store_true',  help="use eTRIMS-04 dataset")
     parser.add_argument("-n", "--num", metavar="num", type=int, default=5,  help="set number of function")
     parser.add_argument("-p", "--parameter", metavar='file', type=str, help="set trained parameter")
@@ -811,5 +796,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     t_args = map(lambda x:x in args.tree, ['d','e','b'])
-    etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle,
-                    four=args.four, num=args.num, parameter=args.parameter, t_args=t_args, file_name=args.name)
+    etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle, cram=args.cram,
+                four=args.four, num=args.num, parameter=args.parameter, t_args=t_args, file_name=args.name)
