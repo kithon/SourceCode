@@ -88,7 +88,8 @@ class DecisionTree(object):
                     for l in l_sign:
                         signal[tuple(l)] = l_index
                     for r in r_sign:
-                        signal[tuple(r)] = r_index                        
+                        signal[tuple(r)] = r_index
+                    node_length += 2
                 else:
                     fix_count += point            
 
