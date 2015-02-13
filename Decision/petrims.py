@@ -49,11 +49,6 @@ class DecisionTree(object):
     
     def getFileName(self, index):
         return '%snode_%d.log'% (self.dir_name, index)
-    
-    def clearFile(self):
-        path = self.dir_name
-        cmd = 'rm -f %s*' % path
-        os.system(cmd)
 
     def getNode(self, data=None, depth=None):
         return Node(data, self.picture, depth, self.generate_threshold, self.d_limit, self.condition)
@@ -156,8 +151,8 @@ class DecisionTree(object):
             predict_signal = self.predict(temp)
             if predict_signal == self.picture[i].getSignal(x,y):
                 count += 1
-        self.clearFile()
         return count * 1.0 / length
+
     """
     def score(self, picture, d_limit=None):
         input = []
