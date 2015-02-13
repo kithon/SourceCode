@@ -88,7 +88,7 @@ class DecisionTree(object):
             # -*- initialize jobs, dic -*-
             jobs = []
             dic = multiprocessing.Manager().dict()
-            num_process = min(core, len(exec_list))
+            num_process = 1 #min(core, len(exec_list))
 
             # -*- print depth -*-
             print_time("depth:%d" % current_depth, self.file_name)
@@ -760,6 +760,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
     
     # ----- Decision Tree -----
     if isDT:
+        """
         print_time('DecisionTree overlap: init', file_name)
         dt = DecisionTree(radius=radius, num_function=num, file_name=file_name)
         
@@ -772,7 +773,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, t_args, 
         
         print_time('DecisionTree overlap: info', file_name)
         dt.info()
-
+        """
         
         print_time('DecisionTree: init', file_name)
         dt = DecisionTree(radius=radius, num_function=num, file_name=file_name)
