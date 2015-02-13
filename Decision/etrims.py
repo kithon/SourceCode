@@ -72,9 +72,9 @@ class DecisionTree(object):
         for i,p in enumerate(picture):
             w,h = p.getSize()
             if overlap:
-                input = {[i,j,k]:index for j in range(w) for k in range(h)}
+                input = {(i,j,k):index for j in range(w) for k in range(h)}
             else:
-                input = {[i,j,k]:index for j in range(self.radius, w, 2*self.radius+1) for k in range(self.radius, h, 2*self.radius+1)}                        
+                input = {(i,j,k):index for j in range(self.radius, w, 2*self.radius+1) for k in range(self.radius, h, 2*self.radius+1)}                        
 
         # -*- execution_list, wait_list, node_length -*-
         node_length = 1
@@ -166,7 +166,7 @@ class DecisionTree(object):
         self.picture = picture
         for i,p in enumerate(picture):
             w,h = p.getSize()
-            input = {[i,j,k]:0 for j in range(w) for k in range(h)}
+            input = {(i,j,k):0 for j in range(w) for k in range(h)}
 
         count = 0
         fix_count = 0
