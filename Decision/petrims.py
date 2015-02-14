@@ -464,22 +464,32 @@ class BinaryExtremeDecisionTree(DecisionTree):
             num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
 
             label = set()
-            while len(label) < 2:
-                label.clear()
-                sample_index = random.sample(data, num)
-                for temp in sample_index:
-                    i,x,y = temp
-                    label.add(self.picture[i].getSignal(x, y))
+            for d in data:
+                i,x,y = d
+                label.add(self.picture[i].getSignal(x, y))
+            sig = random.sample(label, 2)
+            if len(label) < 2:
+                raise Exception('BEDT:generate_threshold')
+            
+            l_data, r_data = [], []
+            for d in data:
+                i,x,y = d
+                if sig[0] == self.picture[i].getSignal(x, y):
+                    l_data.append(d)
+                elif sig[1] == self.picture[i].getSignal(x, y):
+                    r_data.append(d)
 
-            length = len(label) / 2
-            one_index = random.sample(label, length)
-            for temp in sample_index:
-                i,x,y = temp
+            l_data = random.sample(l_data, min(num/2, len(l_data)))
+            for l in l_data:
+                i,x,y = l
                 sample_input.append(self.picture[i].cropData(x, y, self.radius))
-                if self.picture[i].getSignal(x, y) in one_index:
-                    sample_label.append(1)
-                else:
-                    sample_label.append(0)
+                sample_label.append(0)
+
+            r_data = random.sample(r_data, min(num/2, len(r_data)))
+            for r in r_data:
+                i,x,y = r
+                sample_input.append(self.picture[i].cropData(x, y, self.radius))
+                sample_label.append(0)
                 
             weight, bias, beta = elm.fit(sample_input, sample_label)
             yield weight, bias, beta
