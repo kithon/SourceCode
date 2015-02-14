@@ -95,7 +95,7 @@ class DecisionTree(object):
                 input_list = [list(x) for x in input.iterkeys() if input[x] == index]
                 signal_list = [list(x) for x in signal.iterkeys() if signal[x] == index]
                 node = self.getNode(input_list, signal_list, current_depth)
-                parameter = dic.get(i)
+                parameter = dic.get(index)
                 node.load(parameter)
                 point = node.getScore()
                 if not node.isTerminal():
