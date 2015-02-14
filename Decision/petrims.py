@@ -10,12 +10,6 @@ from extreme import StackedELMAutoEncoder, BinaryELMClassifier
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
-
-def fit_process(dic, index_list, node_list):
-    for i,node in enumerate(node_list):
-        node.fit()
-        parameter = node.save()
-        dic.update({index_list[i]: parameter})
     
 ##########################################################
 ##  Decision Tree (for etrims)
@@ -364,19 +358,6 @@ class Node(object):
         # get child index
         return self.l_index, self.r_index
 
-    def save(self):
-        # return parameter
-        detail = [] if self.isTerminal() else [self.l_index, self.r_index, self.selected_dim, self.theta]
-        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
-        return parameter
-
-    def load(self, parameter):
-        # set parameter
-        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
-        if not self.isTerminal():
-            self.l_index, self.r_index, self.selected_dim, self.theta = detail
-        
-
 ##########################################################
 ##  ExtremeDecision Tree (for etrims)
 ##########################################################
@@ -465,29 +446,6 @@ class ExtremeNode(Node):
             crop = sigmoid(np.dot(crop, beta.T) + bias)
         return crop[selected_dim] - theta
     
-
-    def save(self):
-        # return parameter
-        detail = [] if self.isTerminal() else [self.l_index, self.r_index,
-                                               self.selected_dim, self.theta,
-                                               map(lambda n:n.tolist(), self.betas),
-                                               map(lambda n:n.tolist(), self.biases)]
-        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
-        return parameter
-
-    def load(self, parameter):
-        # set parameter
-        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
-        if not self.isTerminal():
-            l, r, s, t, be, bi = detail
-            self.l_index = l
-            self.r_index = r
-            self.selected_dim = s
-            self.theta = t
-            self.betas = map(np.array, be)
-            self.biases = map(np.array, bi)
-            
-
 ##########################################################
 ##  ExtremeBinaryDecision Tree (for etrims)
 ##########################################################
@@ -581,28 +539,6 @@ class BinaryExtremeNode(Node):
         crop = np.dot(beta.T, crop)
         return crop - 0.5
     
-
-    def save(self):
-        # return parameter
-        detail = [] if self.terminal else [self.l_index, self.r_index,
-                                           self.weight.tolist(),
-                                           self.bias.tolist(),
-                                           self.beta.tolist()]
-        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
-        return parameter
-
-    def load(self, parameter):
-        # set parameter
-        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
-        if not self.isTerminal():
-            l, r, we, bi, be = detail
-            self.l_index = l
-            self.r_index = r
-            self.weight = np.array(we)
-            self.bias = np.array(bi)
-            self.beta = np.array(be)            
-    
-    
 ##########################################################
 ##  Pic
 ##########################################################
@@ -615,21 +551,17 @@ class Pic(object):
         self.setSignal(signal)
 
     def setData(self, data):
-        data_list = []
+        data_list = {}
         for x in xrange(self.w):
-            row = []
             for y in xrange(self.h):
-                row.append(list(data.getpixel((x,y))))
-            data_list.append(row)
+                data_list[x,y] = list(data.getpixel((x,))))
         self.data = data_list
         
     def setSignal(self, signal):
-        signal_list = []
+        signal_list = {}
         for x in xrange(self.w):
-            row = []
             for y in xrange(self.h):
-                row.append(signal.getpixel((x,y)))
-            signal_list.append(row)
+                signal_list[x,y] = signal.getpixel((x,y))
         self.signal = signal_list
         
     def getSize(self):
@@ -643,11 +575,11 @@ class Pic(object):
             # out of y_range
             return [0,0,0]
         # in range
-        return self.data[x][y]
+        return self.data[x,y]
 
     def getSignal(self, x, y):
         # in range
-        return self.signal[x][y]
+        return self.signal[x,y]
 
     def cropData(self, x, y, radius):
         crop = []
