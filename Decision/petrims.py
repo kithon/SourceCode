@@ -16,9 +16,6 @@ def sigmoid(x):
 ##########################################################
 
 class DecisionTree(object):
-    __slots__ = ['radius', 'num_function', 'condition',
-                 'np_rng', 'd_limit', 'dir_name', 'file_name',
-                 'picture','sig_picture', 'node_length', 'parameter_list']
     def __init__(self, radius=None, num_function=10, condition='gini', seed=123, file_name=None):
         if radius is None:
             Exception('Error: radius is None.')
@@ -200,9 +197,6 @@ class DecisionTree(object):
 ##########################################################
 
 class Node(object):
-    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
-                 'd_limit', 'condition', 'l_index', 'r_index',
-                 'terminal', 'label', 'selected_dim', 'theta']
     def __init__(self, data=None, picture=None, signal=None, sig_picture=None, depth=None, gen_threshold=None, d_limit=None, condition=None):
         if not data is None:
             self.data = data
@@ -363,10 +357,6 @@ class Node(object):
 ##########################################################
 
 class ExtremeDecisionTree(DecisionTree):
-    __slots__ = ['radius', 'num_function', 'condition',
-                 'np_rng', 'd_limit', 'dir_name', 'file_name',
-                 'picture', 'sig_picture', 'node_length', 'parameter_list',
-                 'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=1, num_function=10, condition='gini', seed=123, visualize=False, file_name=None):
         DecisionTree.__init__(self, radius, num_function, condition, seed, file_name)
@@ -407,10 +397,6 @@ class ExtremeDecisionTree(DecisionTree):
 ##########################################################
 
 class ExtremeNode(Node):
-    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
-                 'd_limit', 'radius', 'condition', 'l_index', 'r_index',
-                 'terminal', 'label', 'selected_dim', 'theta',
-                 'betas', 'biases']
     def __init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
@@ -451,10 +437,6 @@ class ExtremeNode(Node):
 ##########################################################
 
 class BinaryExtremeDecisionTree(DecisionTree):
-    __slots__ = ['radius', 'num_function', 'condition',
-                 'np_rng', 'd_limit', 'dir_name', 'file_name',
-                 'picture', 'sig_picture', 'node_length', 'parameter_list',
-                 'elm_hidden', 'elm_coef', 'visualize']
     def __init__(self, elm_hidden=None, elm_coef=None,
                  radius=None, num_function=10, condition='gini', seed=123, visualize=False, file_name=None):
         DecisionTree.__init__(self, radius, num_function, condition, seed, file_name)
@@ -502,10 +484,6 @@ class BinaryExtremeDecisionTree(DecisionTree):
 ##########################################################
 
 class BinaryExtremeNode(Node):
-    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
-                 'd_limit', 'radius', 'condition', 'l_index', 'r_index',
-                 'terminal', 'label',
-                 'weight', 'bias', 'beta']
     def __init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
