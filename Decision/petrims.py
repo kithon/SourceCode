@@ -554,7 +554,7 @@ class Pic(object):
         data_list = {}
         for x in xrange(self.w):
             for y in xrange(self.h):
-                data_list[x,y] = list(data.getpixel((x,))))
+                data_list[x,y] = list(data.getpixel((x,y)))
         self.data = data_list
         
     def setSignal(self, signal):
