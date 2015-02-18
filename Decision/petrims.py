@@ -195,7 +195,6 @@ class Node(object):
                 thresholds = [t for t in self.gen_threshold(self.data)]
                 self.opt_threshold(self.data, thresholds)
                 l_data, l_label, r_data, r_label = self.divide()
-                print_parameter(count, self.file_name)
                 if limit < count:
                     self.terminal = True
                     return                    
