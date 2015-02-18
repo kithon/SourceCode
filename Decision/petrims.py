@@ -195,6 +195,7 @@ class Node(object):
                 thresholds = [t for t in self.gen_threshold(self.data)]
                 self.opt_threshold(self.data, thresholds)
                 l_data, l_label, r_data, r_label = self.divide()
+                count += 1
                 if limit < count:
                     self.terminal = True
                     return                    
@@ -557,7 +558,7 @@ class RandomExtremeNode(Node):
             self.bias = np.array(b)
     
 ##########################################################
-##  ExtremeBinaryDecision Tree (for etrims)
+##  BinaryExtremeDecision Tree (for etrims)
 ##########################################################
 
 class BinaryExtremeDecisionTree(DecisionTree):
@@ -611,7 +612,7 @@ class BinaryExtremeDecisionTree(DecisionTree):
             for r in r_data:
                 i,x,y = r
                 sample_input.append(self.picture[i].cropData(x, y, self.radius))
-                sample_label.append(0)
+                sample_label.append(1)
 
             weight, bias, beta = elm.fit(sample_input, sample_label)
             yield weight, bias, beta
