@@ -576,6 +576,7 @@ class BinaryExtremeDecisionTree(DecisionTree):
         self.dir_name = 'binary/'
 
     def getNode(self, data=None, signal=None, depth=None):
+        print_parameter('get node')
         return BinaryExtremeNode(data, self.picture, signal, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
     
     def generate_threshold(self, data):
