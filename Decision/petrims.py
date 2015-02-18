@@ -592,7 +592,6 @@ class BinaryExtremeDecisionTree(DecisionTree):
             sig = random.sample(label, 2)
             if len(label) < 2:
                 raise Exception('BEDT:generate_threshold')
-            print_parameter(sig, self.file_name)
             
             l_data, r_data = [], []
             for d in data:
@@ -613,7 +612,10 @@ class BinaryExtremeDecisionTree(DecisionTree):
                 i,x,y = r
                 sample_input.append(self.picture[i].cropData(x, y, self.radius))
                 sample_label.append(0)
-                
+
+            print_parameter(len(sample_input), self.file_name)
+            print_parameter(len(sample_label), self.file_name)
+
             weight, bias, beta = elm.fit(sample_input, sample_label)
             print_parameter("fit!", self.file_name)
 
