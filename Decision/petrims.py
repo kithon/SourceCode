@@ -483,10 +483,7 @@ class RandomExtremeDecisionTree(DecisionTree):
                 i,x,y = temp
                 sample.append(self.picture[i].cropData(x, y, self.radius))
 
-            print "w", weight.shape            
-            print "b", bias.shape
             numpy_data = np.array(sigmoid(np.dot(sample, weight) + bias))
-            print numpy_data.shape
             selected_dim = self.np_rng.randint(self.n_hidden)
             selected_row = numpy_data.T[selected_dim]
             min_row = selected_row.min()
@@ -534,7 +531,7 @@ class RandomExtremeNode(Node):
             
         i,  x,  y = element
         crop = self.picture[i].cropData(x, y, self.radius)
-        crop = sigmoid(np.dot(weight.T, crop) + bias)
+        crop = sigmoid(np.dot(crop, weight) + bias)
         return crop[selected_dim] - theta
     
 
@@ -545,12 +542,10 @@ class RandomExtremeNode(Node):
                                                self.weight.tolist(),
                                                self.bias.tolist()]
         parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
-        print parameter
         return parameter
 
     def load(self, parameter):
         # set parameter
-        print parameter
         self.depth, self.d_limit, self.terminal, self.label, detail = parameter
         if not self.isTerminal():
             l, r, s, t, w, b = detail
