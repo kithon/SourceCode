@@ -485,7 +485,7 @@ class RandomExtremeDecisionTree(DecisionTree):
 
             print "w", weight.shape            
             print "b", bias.shape
-            numpy_data = np.array(sigmoid(np.dot(weight.T, sample) + bias))
+            numpy_data = np.array(sigmoid(np.dot(sample, weight) + bias))
             selected_dim = self.np_rng.randint(self.n_hidden)
             selected_row = numpy_data.T[selected_dim]
             min_row = selected_row.min()
