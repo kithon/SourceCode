@@ -546,6 +546,7 @@ class RandomExtremeNode(Node):
 
     def load(self, parameter):
         # set parameter
+        print_parameter(parameter)
         self.depth, self.d_limit, self.terminal, self.label, detail = parameter
         if not self.isTerminal():
             l, r, s, t, w, b = detail
