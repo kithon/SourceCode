@@ -542,12 +542,12 @@ class RandomExtremeNode(Node):
                                                self.weight.tolist(),
                                                self.bias.tolist()]
         parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
-        print_parameter(parameter)
+        print parameter
         return parameter
 
     def load(self, parameter):
         # set parameter
-        print_parameter(parameter)
+        print parameter
         self.depth, self.d_limit, self.terminal, self.label, detail = parameter
         if not self.isTerminal():
             l, r, s, t, w, b = detail
