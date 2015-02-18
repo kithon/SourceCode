@@ -874,7 +874,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_
 
 def etrims_tree_makeup(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_args, file_name):
     # ----- initialize -----
-    print_time('eTRIMS: make up')
+    print_time('eTRIMS: make up', file_name)
     param = literal_eval(linecache(parameter, 1))
     radius, size, d_limit, unshuffle, four, num = param[0:6]
     t_index = literal_eval(linecache(parameter, 3+size))
