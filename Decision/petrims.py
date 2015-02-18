@@ -592,7 +592,7 @@ class BinaryExtremeDecisionTree(DecisionTree):
             sig = random.sample(label, 2)
             if len(label) < 2:
                 raise Exception('BEDT:generate_threshold')
-            print_parameter("sig:" + sig, self.file_name)
+            print_parameter(sig, self.file_name)
             
             l_data, r_data = [], []
             for d in data:
