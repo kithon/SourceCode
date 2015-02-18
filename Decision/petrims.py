@@ -500,7 +500,7 @@ class RandomExtremeNode(Node):
     __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
                  'd_limit', 'radius', 'condition', 'l_index', 'r_index',
                  'terminal', 'label', 'selected_dim', 'theta',
-                 'weights', 'biases']
+                 'weight', 'bias']
     def __init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, radius, condition):
         Node.__init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, condition)
         self.radius = radius
@@ -517,23 +517,21 @@ class RandomExtremeNode(Node):
             if minimum is None or temp < minimum:
                 index = i
                 minimum = temp
-        self.selected_dim, self.theta, self.weights, self.biases = thresholds[index]
+        self.selected_dim, self.theta, self.weight, self.bias = thresholds[index]
         
     def function(self, element, threshold=None):
         # set threshold
         if threshold is None:
             selected_dim = self.selected_dim
             theta = self.theta
-            weights = self.weights
-            biases = self.biases
+            weight = self.weight
+            bias = self.bias
         else:
-            selected_dim, theta, weights, biases = threshold
+            selected_dim, theta, weight, bias = threshold
             
         i,  x,  y = element
         crop = self.picture[i].cropData(x, y, self.radius)
-        for i, weight in enumerate(weights):
-            bias = biases[i]
-            crop = sigmoid(np.dot(weight.T, crop) + bias)
+        crop = sigmoid(np.dot(weight.T, crop) + bias)
         return crop[selected_dim] - theta
     
 
@@ -541,8 +539,8 @@ class RandomExtremeNode(Node):
         # return parameter
         detail = [] if self.isTerminal() else [self.l_index, self.r_index,
                                                self.selected_dim, self.theta,
-                                               map(lambda n:n.tolist(), self.weights),
-                                               map(lambda n:n.tolist(), self.biases)]
+                                               self.weight.tolist(),
+                                               self.bias.tolist()]
         parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
         return parameter
 
@@ -550,13 +548,13 @@ class RandomExtremeNode(Node):
         # set parameter
         self.depth, self.d_limit, self.terminal, self.label, detail = parameter
         if not self.isTerminal():
-            l, r, s, t, w, bi = detail
+            l, r, s, t, w, b = detail
             self.l_index = l
             self.r_index = r
             self.selected_dim = s
             self.theta = t
-            self.weights = map(np.array, w)
-            self.biases = map(np.array, bi)
+            self.weight = np.array(w)
+            self.bias = np.array(b)
     
 ##########################################################
 ##  ExtremeBinaryDecision Tree (for etrims)
