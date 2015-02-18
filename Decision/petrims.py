@@ -6,6 +6,8 @@ import numpy as np
 import collections
 import argparse
 import multiprocessing
+import linecache
+from ast import literal_eval
 from PIL import Image
 from extreme import StackedELMAutoEncoder, BinaryELMClassifier
 
@@ -433,6 +435,128 @@ class ExtremeNode(Node):
             self.betas = map(np.array, be)
             self.biases = map(np.array, bi)
             
+        
+
+##########################################################
+##  Random ExtremeDecision Tree (for etrims)
+##########################################################
+
+class RandomExtremeDecisionTree(DecisionTree):
+    __slots__ = ['radius', 'num_function', 'condition',
+                 'np_rng', 'd_limit', 'dir_name', 'file_name',
+                 'picture', 'sig_picture', 'node_length', 'parameter_list',
+                 'n_input', 'n_hidden', 'visualize']
+    def __init__(self, n_input=None, n_hidden=None, radius=1, num_function=10, condition='gini', seed=123, visualize=False, file_name=None):
+        DecisionTree.__init__(self, radius, num_function, condition, seed, file_name)
+        if n_input is None:
+            n_input = 3 * (2*radius+1) * (2*radius+1)
+        if n_hidden is None:
+            n_hidden = 2 * n_input
+        self.n_input = n_input
+        self.n_hidden = n_hidden
+        self.visualize = visualize
+        self.dir_name = 'random/'        
+
+    def getNode(self, data=None, signal=None, depth=None):
+        return RandomExtremeNode(data, self.picture, signal, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
+    
+    def generate_threshold(self, data):
+        for i in xrange(self.num_function):            
+            weight = self.np_rng.uniform(low = 0.0, high = 1.0, size = (self.n_input, self.n_hidden))
+            bias = self.np_rng.uniform(low = 0.0, high = 1.0, size = self.n_hidden)
+
+            # regularize weight
+            for i,w in enumerate(weight):
+                denom = np.linalg.norm(w)
+                if denom != 0:
+                    weight[i] = w / denom
+
+            # regularize bias
+            denom = np.linalg.norm(bias)
+            if denom != 0:
+                denom = bias / denom
+
+            sample = []
+            num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
+            sample_index = random.sample(data, num)
+            for temp in sample_index:
+                i,x,y = temp
+                sample.append(self.picture[i].cropData(x, y, self.radius))
+
+            numpy_data = np.array(sigmoid(np.dot(weight.T, sample) + bias))
+            selected_dim = self.np_rng.randint(self.n_hidden)
+            selected_row = numpy_data.T[selected_dim]
+            min_row = selected_row.min()
+            max_row = selected_row.max()
+            theta = self.np_rng.rand() * (max_row - min_row) + min_row
+            yield selected_dim, theta, weight, bias
+
+            
+##########################################################
+##  Random Extreme Node (for etrims)
+##########################################################
+
+class RandomExtremeNode(Node):
+    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
+                 'd_limit', 'radius', 'condition', 'l_index', 'r_index',
+                 'terminal', 'label', 'selected_dim', 'theta',
+                 'weights', 'biases']
+    def __init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, radius, condition):
+        Node.__init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, condition)
+        self.radius = radius
+
+    def opt_threshold(self, data, thresholds):
+        cost = self.gini if self.condition == 'gini' else self.entropy
+        index = None
+        minimum = None
+        for i,threshold in enumerate(thresholds):
+            # threshold consits of (selected_dim, theta, betas, biases)
+            #print "size of threshold:", len(threshold)
+            l_data, l_label, r_data, r_label = self.divide(data, threshold)
+            temp = cost(l_label, r_label)
+            if minimum is None or temp < minimum:
+                index = i
+                minimum = temp
+        self.selected_dim, self.theta, self.weights, self.biases = thresholds[index]
+        
+    def function(self, element, threshold=None):
+        # set threshold
+        if threshold is None:
+            selected_dim = self.selected_dim
+            theta = self.theta
+            weights = self.weights
+            biases = self.biases
+        else:
+            selected_dim, theta, weights, biases = threshold
+            
+        i,  x,  y = element
+        crop = self.picture[i].cropData(x, y, self.radius)
+        for i, weight in enumerate(weights):
+            bias = biases[i]
+            crop = sigmoid(np.dot(weight.T, crop) + bias)
+        return crop[selected_dim] - theta
+    
+
+    def save(self):
+        # return parameter
+        detail = [] if self.isTerminal() else [self.l_index, self.r_index,
+                                               self.selected_dim, self.theta,
+                                               map(lambda n:n.tolist(), self.weights),
+                                               map(lambda n:n.tolist(), self.biases)]
+        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
+        return parameter
+
+    def load(self, parameter):
+        # set parameter
+        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
+        if not self.isTerminal():
+            l, r, s, t, w, bi = detail
+            self.l_index = l
+            self.r_index = r
+            self.selected_dim = s
+            self.theta = t
+            self.weights = map(np.array, w)
+            self.biases = map(np.array, bi)
     
 ##########################################################
 ##  ExtremeBinaryDecision Tree (for etrims)
@@ -639,7 +763,10 @@ def print_time(message, FILE_NAME):
 ##  load_etrims
 ##########################################################
     
-def load_etrims(radius, size, is08, shuffle, name):
+def load_etrims(radius, size, is08, shuffle, name, t_index=None):
+    # ----- make up -----
+    isInit = t_index is None
+    
     # ----- path initialize -----
     root_path = '../Dataset/etrims-db_v1/'
     an_name = 'annotations/'
@@ -653,7 +780,10 @@ def load_etrims(radius, size, is08, shuffle, name):
     train_index = []
     DATA_SIZE = size # max=60 
     TRAIN_SIZE = 2 * size / 3 # max=40
-    train_index = random.sample(range(DATA_SIZE), TRAIN_SIZE) if shuffle else range(TRAIN_SIZE)
+    if isInit:
+        train_index = random.sample(range(DATA_SIZE), TRAIN_SIZE) if shuffle else range(TRAIN_SIZE)
+    else:
+        train_index = t_index
 
     # ----- test set and train set -----
     train_set = []
@@ -674,11 +804,13 @@ def load_etrims(radius, size, is08, shuffle, name):
         test_or_train[index].append(picture)
 
         # print filename
-        print_time("eTRIMS: %s" % file_name, name)
+        if isInit:
+            print_time("eTRIMS: %s" % file_name, name)
 
     # ----- finish -----
-    print_parameter(train_index, name)
-    print_time("eTRIMS: train=%d test=%d" % (len(train_set), len(test_set)), name)
+    if isInit:
+        print_parameter(train_index, name)
+        print_time("eTRIMS: train=%d test=%d" % (len(train_set), len(test_set)), name)
     return train_set, test_set
 
 
@@ -688,7 +820,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_
     print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d' % (radius, str(d_limit), size, num), file_name)
     print_time('eTRIMS: load', file_name)
     train_set, test_set = load_etrims(radius=radius, size=size, is08=not four, shuffle=not unshuffle, name=file_name)
-    isDT, isEDT, isBEDT = t_args
+    isDT, isEDT, isREDT, isBEDT = t_args
     
     # ----- Decision Tree -----
     if isDT:        
@@ -713,6 +845,17 @@ def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_
         print_time('ExtremeDecisionTree: info', file_name)
         edt.info()
 
+    # ----- Random Extreme Decision Tree -----
+    if isREDT:
+        print_time('RandomExtremeDecisionTree: init', file_name)
+        redt = RandomExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
+        
+        print_time('RandomExtremeDecisionTree: train', file_name)
+        redt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
+
+        print_time('RandomExtremeDecisionTree: info', file_name)
+        redt.info()
+
     # ----- Binary Extreme Decision Tree -----
     if isBEDT:
         print_time('BinaryExtremeDecisionTree: init', file_name)
@@ -729,6 +872,66 @@ def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_
     print_time('eTRIMS: finish', file_name)
 
 
+def etrims_tree_makeup(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_args, file_name):
+    # ----- initialize -----
+    print_time('eTRIMS: make up')
+    param = literal_eval(linecache(parameter, 1))
+    radius, size, d_limit, unshuffle, four, num = param[0:6]
+    t_index = literal_eval(linecache(parameter, 3+size))
+    train_set, test_set = load_etrims(radius=radius, size=size, is08=not four, shuffle=not unshuffle, name=file_name, t_index=t_index)
+    isDT, isEDT, isREDT, isBEDT = t_args
+    
+    # ----- Decision Tree -----
+    if isDT:        
+        print_time('DecisionTree: init', file_name)
+        dt = DecisionTree(radius=radius, num_function=num, file_name=file_name)
+        
+        print_time('DecisionTree: train', file_name)
+        dt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
+        
+        print_time('DecisionTree: info', file_name)
+        dt.info()
+    
+
+    # ----- Extreme Decision Tree -----
+    if isEDT:
+        print_time('ExtremeDecisionTree: init', file_name)
+        edt = ExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
+        
+        print_time('ExtremeDecisionTree: train', file_name)
+        edt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
+
+        print_time('ExtremeDecisionTree: info', file_name)
+        edt.info()
+
+    # ----- Random Extreme Decision Tree -----
+    if isREDT:
+        print_time('RandomExtremeDecisionTree: init', file_name)
+        redt = RandomExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
+        
+        print_time('RandomExtremeDecisionTree: train', file_name)
+        redt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
+
+        print_time('RandomExtremeDecisionTree: info', file_name)
+        redt.info()
+        
+    # ----- Binary Extreme Decision Tree -----
+    if isBEDT:
+        print_time('BinaryExtremeDecisionTree: init', file_name)
+        bedt = BinaryExtremeDecisionTree(radius=radius, num_function=num, file_name=file_name)
+        
+        print_time('BinaryExtremeDecisionTree: train', file_name)
+        bedt.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
+        
+        print_time('BinaryExtremeDecisionTree: info', file_name)
+        bedt.info()
+
+
+    # ----- finish -----
+    print_time('eTRIMS: finish', file_name)
+
+    
+
 if __name__ == '__main__':
     # ----- parser description -----
     parser = argparse.ArgumentParser(description='Test eTRIMS-08 Segmentation Dataset (need etrims_tree.py)')
@@ -742,11 +945,16 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--num", metavar="num", type=int, default=5,  help="set number of function")
     parser.add_argument("-p", "--parameter", metavar='file', type=str, help="set trained parameter")
     parser.add_argument("-s", "--seed", type=int, default=1, help="seed")
-    parser.add_argument("-t", "--tree", metavar='{d,e,b}', default='deb', help="run tree individually")
+    parser.add_argument("-t", "--tree", metavar='{d,e,r,b}', default='derb', help="run tree individually")
     
     # ----- etrims_tree -----
     args = parser.parse_args()
     
-    t_args = map(lambda x:x in args.tree, ['d','e','b'])
-    etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle, cram=args.cram,
-                four=args.four, num=args.num, parameter=args.parameter, t_args=t_args, file_name=args.name)
+    t_args = map(lambda x:x in args.tree, ['d','e','r','b'])
+    if args.parameter is None:
+        etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle, cram=args.cram,
+                    four=args.four, num=args.num, parameter=args.parameter, t_args=t_args, file_name=args.name)
+    else:
+        etrims_tree_makeup(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle, cram=args.cram,
+                           four=args.four, num=args.num, parameter=args.parameter, t_args=t_args, file_name=args.name)
+   
