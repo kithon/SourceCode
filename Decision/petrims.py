@@ -542,6 +542,7 @@ class RandomExtremeNode(Node):
                                                self.weight.tolist(),
                                                self.bias.tolist()]
         parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
+        print_parameter(parameter)
         return parameter
 
     def load(self, parameter):
