@@ -877,7 +877,7 @@ def etrims_tree_makeup(radius, size, d_limit, unshuffle, cram, four, num, parame
     print_time('eTRIMS: make up', file_name)
     param = literal_eval(linecache.getline(parameter, 1))
     radius, size, d_limit, unshuffle, four, num = param[0:6]
-    t_index = literal_eval(linecache.getline(parameter, 3+size))
+    t_index = literal_eval(linecache.getline(parameter, 4+size))
     train_set, test_set = load_etrims(radius=radius, size=size, is08=not four, shuffle=not unshuffle, name=file_name, t_index=t_index)
     isDT, isEDT, isREDT, isBEDT = t_args
     
