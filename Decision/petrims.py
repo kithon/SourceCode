@@ -531,6 +531,8 @@ class RandomExtremeNode(Node):
             
         i,  x,  y = element
         crop = self.picture[i].cropData(x, y, self.radius)
+        print "w", weight.shape
+        print "b", bias.shape
         crop = sigmoid(np.dot(weight.T, crop) + bias)
         return crop[selected_dim] - theta
     
