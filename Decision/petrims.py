@@ -195,6 +195,7 @@ class Node(object):
                 thresholds = [t for t in self.gen_threshold(self.data)]
                 self.opt_threshold(self.data, thresholds)
                 l_data, l_label, r_data, r_label = self.divide()
+                print_parameter(count, self.file_name)
                 if limit < count:
                     self.terminal = True
                     return                    
@@ -613,12 +614,7 @@ class BinaryExtremeDecisionTree(DecisionTree):
                 sample_input.append(self.picture[i].cropData(x, y, self.radius))
                 sample_label.append(0)
 
-            print_parameter(len(sample_input), self.file_name)
-            print_parameter(len(sample_label), self.file_name)
-
             weight, bias, beta = elm.fit(sample_input, sample_label)
-            print_parameter("fit!", self.file_name)
-
             yield weight, bias, beta
 
 
