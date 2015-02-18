@@ -182,6 +182,12 @@ class StackedELMAutoEncoder(object):
             # get beta
             beta = ae.get_beta()
             bias = ae.get_bias()
+
+            # regularize beta
+            for i,b in enumerate(beta):
+                denom = np.linalg.norm(b)
+                if denom != 0:
+                    beta[i] = b / denom
             
             # part use activation and bias
             act = np.dot(data, beta.T) + ae.get_bias()
