@@ -1,0 +1,1 @@
+python petrims.py -c -p test_allegro/result_1.log -t r test_allegro/result_1.log 2 2> test_allegro/error_1.log

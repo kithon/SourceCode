@@ -1,0 +1,64 @@
+iwamoto@andante:~/git/SourceCode/Decision$ python petrims.py 3 3
+['petrims.py', '3', '3']
+2015/1/30 1:14:1.498728 load_etrims
+image datas and annotations...
+basel_000003_mv0 done.
+basel_000004_mv0 done.
+basel_000005_mv0 done.
+basel_000009_mv0 done.
+basel_000010_mv0 done.
+basel_000049_mv0 done.
+train: 4 test: 2
+2015/1/30 1:14:1.508412 tree2etrims test size is 3
+2015/1/30 1:14:1.508451 train_DecisionTree number of function is 10
+2015/1/30 1:14:2.132677 depth:0
+2015/1/30 1:15:2.528777 depth:1
+2015/1/30 1:15:54.432874 depth:2
+2015/1/30 1:16:26.564565 depth:3
+2015/1/30 1:16:27.734981 test_DecisionTree
+2015/1/30 1:16:34.476552 score is 0.612612
+2015/1/30 1:16:34.476603 DecisionTree info
+Information
+root node node size 15
+max depth 3
+2015/1/30 1:16:34.476637 train_ExtremeDecisionTree elm_hidden is 294, num function is 10
+2015/1/30 1:16:35.376858 depth:0
+
+
+
+iwamoto@andante:~/git/SourceCode/Decision$ python petrims_pic.py 3 3
+['petrims_pic.py', '3', '3']
+2015/1/30 1:35:22.772782 load_etrims
+image datas and annotations...
+basel_000003_mv0 done.
+basel_000004_mv0 done.
+basel_000005_mv0 done.
+basel_000009_mv0 done.
+basel_000010_mv0 done.
+basel_000049_mv0 done.
+train: 4 test: 2
+2015/1/30 1:35:28.674938 tree2etrims test size is 3
+2015/1/30 1:35:28.674968 train_DecisionTree number of function is 10
+2015/1/30 1:35:29.380845 depth:0
+2015/1/30 1:35:46.422510 depth:1
+2015/1/30 1:36:1.396677 depth:2
+2015/1/30 1:36:10.12510 depth:3
+2015/1/30 1:36:10.535372 test_DecisionTree
+2015/1/30 1:36:13.861916 score is 0.596194
+2015/1/30 1:36:13.861967 DecisionTree info
+Information
+root node node size 15
+max depth 3
+2015/1/30 1:36:13.862000 train_ExtremeDecisionTree elm_hidden is 294, num function is 10
+2015/1/30 1:36:14.446429 depth:0
+2015/1/30 1:56:41.730205 depth:1
+2015/1/30 2:11:31.256099 depth:2
+2015/1/30 2:20:41.408951 depth:3
+2015/1/30 2:20:42.118108 test_ExtremeDecisionTree
+2015/1/30 2:23:20.316305 score is 0.554415
+2015/1/30 2:23:20.316356 ExtremeDecisionTree info
+Information
+root node node size 15
+max depth 3
+2015/1/30 2:23:20.316385 tree2etrims test is finished !
+

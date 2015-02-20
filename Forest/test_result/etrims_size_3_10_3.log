@@ -1,0 +1,24 @@
+['tree4etrims.py', '3', '10']
+2015/1/7 9:38:8.275702 load_etrims
+image datas and annotations...
+bonn_000015 done.
+basel_000077_mv0 done.
+basel_000064_mv0 done.
+basel_000070_mv0 done.
+basel_000053_mv0 done.
+heidelberg_000029_mv0 done.
+train: 4 test: 2
+2015/1/7 9:38:8.277427 tree2etrims test size is 3
+2015/1/7 9:38:8.277440 train_DecisionTree number of function is 10
+2015/1/7 9:52:49.972849 test_DecisionTree
+2015/1/7 9:53:10.225794 score is 0.572638
+2015/1/7 9:53:10.225833 DecisionTree info
+Information
+root node max depth 10
+2015/1/7 9:53:10.226829 train_ExtremeDecisionTree elm_hidden is 294, num function is 10
+2015/1/7 17:29:36.273055 test_ExtremeDecisionTree
+2015/1/7 17:50:12.203019 score is 0.566216
+2015/1/7 17:50:12.203060 ExtremeDecisionTree info
+Information
+root node max depth 10
+2015/1/7 17:50:12.204299 tree2etrims test is finished !
