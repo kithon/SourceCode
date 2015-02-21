@@ -52,16 +52,22 @@ class DecisionTree(object):
         for i,p in enumerate(picture):
             w,h = p.getSize()
             if overlap:
-                input = {(i,j,k):0 for j in xrange(w) for k in xrange(h)}
+                for j in xrange(w):
+                    for k in xrange(h):
+                        input[i,j,k] = 0
             else:
-                input = {(i,j,k):0 for j in xrange(self.radius, w, 2*self.radius+1) for k in xrange(self.radius, h, 2*self.radius+1)}
+                for j in xrange(self.radius, w, 2*self.radius+1):
+                    for k in xrange(self.radius, h, 2*self.radius+1):
+                        input[i,j,k] = 0
 
         count = 0
         fix_count = 0
         signal = {}
         for i,p in enumerate(sig_picture):
             w,h = p.getSize()
-            signal = {(i,j,k):0 for j in xrange(w) for k in xrange(h)}
+            for j in xrange(w):
+                for k in xrange(h):
+                    signal[i,j,k] = 0
         length = len(signal)
 
         # -*- execution_list, wait_list, node_length -*-
