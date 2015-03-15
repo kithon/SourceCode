@@ -190,7 +190,7 @@ class DecisionForest(object):
         g = 0
         for label in [l_label, r_label]:
             sub_size = len(label)
-            counter collections.Counter(label).most_common()
+            counter = collections.Counter(label).most_common()
             for c in counter:
                 p = 1. * c[1] / sub_size
                 sub = (1. * sub_size / set_size)
