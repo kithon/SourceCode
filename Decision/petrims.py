@@ -699,6 +699,24 @@ class Pic(object):
         self.setSignal(signal)
 
     def setData(self, data):
+        data_list = []
+        for x in xrange(self.w):
+            temp = []
+            for y in xrange(self.h):
+                temp.append(list(data.getpixel((x,y))))
+            data_list.append(temp)
+        self.data = data_list
+        
+    def setSignal(self, signal):
+        signal_list = []
+        for x in xrange(self.w):
+            temp = []
+            for y in xrange(self.h):
+                temp.append(signal.getpixel((x,y)))
+            signal_list.append(temp)
+        self.signal = signal_list
+    """
+    def setData(self, data):
         data_list = {}
         for x in xrange(self.w):
             for y in xrange(self.h):
@@ -711,10 +729,50 @@ class Pic(object):
             for y in xrange(self.h):
                 signal_list[x,y] = signal.getpixel((x,y))
         self.signal = signal_list
-        
+    """
     def getSize(self):
         return self.w, self.h
 
+    def getData(self, x, y):
+        if x < 0 or x >= self.w:
+            # out of x_range
+            return [0,0,0]
+        if y < 0 or y >= self.h:
+            # out of y_range
+            return [0,0,0]
+        # in range
+        return self.data[x][y]
+
+    def getSignal(self, x, y):
+        # in range
+        return self.signal[x][y]
+
+    def cropData(self, x, y, radius):
+        crop = []
+        for dx in range(x-radius, x+radius+1):
+            for dy in range(y-radius, y+radius+1):
+                crop += self.getData(dx, dy)
+        crop = (1. * np.array(crop) / 255).tolist()
+        return crop
+        """
+        conditions = [x-radius < 0, x+radius >= self.w, y-radius < 0, y+radius >= self.h]
+        if any(conditions):
+            crop = []
+            for dx in range(x-radius, x+radius+1):
+                for dy in range(y-radius, y+radius+1):
+                    crop += self.getData(dx, dy)
+            crop = (1. * np.array(crop) / 255).tolist()
+            print_time(len(crop), "ddd2.log")
+            return crop
+        else:
+            crop = map(lambda a:a[y-radius:y+radius+1], self.data[x-radius:x+radius+1])
+            crop = [c for c2 in crop for c1 in c2 for c in c1]
+            crop = (1. * np.array(crop) / 255).tolist()
+            print_time(len(crop), "ddd.log")
+            return crop
+        """
+        
+    """
     def getData(self, x, y):
         if x < 0 or x >= self.w:
             # out of x_range
@@ -736,7 +794,8 @@ class Pic(object):
                 crop += self.getData(dx, dy)
         crop = (1. * np.array(crop) / 255).tolist()
         return crop
-
+    """
+    
 ##########################################################
 ##  print
 ##########################################################
