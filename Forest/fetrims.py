@@ -215,17 +215,21 @@ class Pic(object):
         self.setSignal(signal)
 
     def setData(self, data):
-        data_list = {}
+        data_list = []
         for x in xrange(self.w):
+            temp = []
             for y in xrange(self.h):
-                data_list[x,y] = list(data.getpixel((x,y)))
+                temp.append(list(data.getpixel((x,y))))
+            data_list.append(temp)
         self.data = data_list
         
     def setSignal(self, signal):
-        signal_list = {}
+        signal_list = []
         for x in xrange(self.w):
+            temp = []
             for y in xrange(self.h):
-                signal_list[x,y] = signal.getpixel((x,y))
+                temp.append(signal.getpixel((x,y)))
+            signal_list.append(temp)
         self.signal = signal_list
         
     def getSize(self):
@@ -239,11 +243,11 @@ class Pic(object):
             # out of y_range
             return [0,0,0]
         # in range
-        return self.data[x,y]
+        return self.data[x][y]
 
     def getSignal(self, x, y):
         # in range
-        return self.signal[x,y]
+        return self.signal[x][y]
 
     def cropData(self, x, y, radius):
         crop = []
