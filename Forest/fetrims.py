@@ -37,7 +37,7 @@ class DecisionForest(object):
             for i,p in enumerate(picture):
                 w,h = p.getSize()
                 # <bootstrap>
-                sample = random.sample(range(w*h), w*h*rate)
+                sample = random.sample(range(w*h), int(w*h*rate))
                 for j in xrange(w):
                     for k in xrange(h):
                         if (j*h + k) in sample:
@@ -120,7 +120,7 @@ class DecisionForest(object):
         # -*- unique check -*-
         label_set = set()
         for element in data:
-            i,x,y = d
+            i,x,y = element
             label_set.put(self.picture[i].getSignal(x,y))
         if len(label_set) == 1:
             return None, None, None, True
