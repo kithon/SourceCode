@@ -41,6 +41,8 @@ class DecisionForest(object):
                 w,h = p.getSize()
                 # <bootstrap>
                 sample = random.sample(range(w*h), int(w*h*rate))
+                print_time(str(len(sample)), self.file_name)
+
                 for j in xrange(w):
                     for k in xrange(h):
                         if (j*h + k) in sample:
