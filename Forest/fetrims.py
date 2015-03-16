@@ -69,7 +69,8 @@ class DecisionForest(object):
             current_depth += 1
             isFinish = []
             # <debug>
-            print_time("while", self.file_name)
+            print self.file_name
+            print "while"
 
 
             # -*- update tree_dic -*-
