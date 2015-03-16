@@ -67,6 +67,9 @@ class DecisionForest(object):
         while (not (all(isFinish) and any(isFinish))) and (d_limit != current_depth):
             current_depth += 1
             isFinish = []
+            # <debug>
+            print_time("while", self.file_name)
+
 
             # -*- update tree_dic -*-
             for t in xrange(self.num_tree):
@@ -118,6 +121,9 @@ class DecisionForest(object):
 
     def getOpt(self, data):
         # -*- unique check -*-
+        # <debug>
+        print_time("getopt", self.file_name)
+
         label_set = set()
         for element in data:
             i,x,y = element
