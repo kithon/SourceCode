@@ -20,8 +20,7 @@ class DecisionForest(object):
         self.np_rng = np.random.RandomState(seed)
         self.file_name = file_name
         self.node_list = []
-        print_time("init", file_name)
-        print self.file_name
+        print_time("init", self.file_name)
 
     def fit(self, picture, test_picture, d_limit=None, overlap=True):
         # -*- tree_dic -*-
