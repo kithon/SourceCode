@@ -45,6 +45,7 @@ class DecisionForest(object):
 
                 for j in xrange(w):
                     for k in xrange(h):
+                        print_time(str((j*h + k) in sample), self.file_name)
                         if (j*h + k) in sample:
                             data[i,j,k] = 0
                 # </bootstrap>
