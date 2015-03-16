@@ -20,7 +20,6 @@ class DecisionForest(object):
         self.np_rng = np.random.RandomState(seed)
         self.file_name = file_name
         self.node_list = []
-        print_time("init", self.file_name)
 
     def fit(self, picture, test_picture, d_limit=None, overlap=True):
         # -*- tree_dic -*-
@@ -31,6 +30,8 @@ class DecisionForest(object):
         pindex_str = "pre_index"
         self.picture = picture
         self.test_picture = test_picture
+
+        print_time("fit1", self.file_name)
         
         for t in xrange(self.num_tree):
             # -*- data -*- #
@@ -63,6 +64,8 @@ class DecisionForest(object):
         # -*- init predict list -*-   
         predict = [(i,j,k) for i,p in enumerate(test_picture) for j in xrange(p.getSize()[0]) for k in xrange(p.getSize()[1])]
         length = len(predict)
+
+        print_time("fit2", self.file_name)
             
         current_depth = 0
         isFinish = []
