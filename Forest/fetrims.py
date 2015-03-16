@@ -18,6 +18,7 @@ class DecisionForest(object):
         self.num_function = num_function
         self.condition = condition
         self.np_rng = np.random.RandomState(seed)
+        self.file_name = file_name
         self.node_list = []
 
     def fit(self, picture, test_picture, d_limit=None, overlap=True):
