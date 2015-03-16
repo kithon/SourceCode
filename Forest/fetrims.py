@@ -38,17 +38,18 @@ class DecisionForest(object):
             data = {}
             rate = 0.7
             for i,p in enumerate(picture):
+                data_sub = {}
                 w,h = p.getSize()
-                # <bootstrap>
-                sample = random.sample(range(w*h), int(w*h*rate))
-                print_time(str(len(sample)), self.file_name)
 
                 for j in xrange(w):
                     for k in xrange(h):
-                        print_time(str((j*h + k) in sample), self.file_name)
-                        if (j*h + k) in sample:
-                            data[i,j,k] = 0
-                # </bootstrap>
+                        data_sub[i,j,k] = 0
+                sample = random.sample(data_sub, int(w*h*(1 - rate)))
+                #print_time(str(len(data_sub)), self.file_name)
+                #print_time(str(len(sample)), self.file_name)
+                for s in sample:
+                    data_sub[s] = -1
+                data.update(data_sub)
 
             # -*- signal -*-
             predict = {}
@@ -136,7 +137,7 @@ class DecisionForest(object):
         label_set = set()
         for element in data:
             i,x,y = element
-            label_set.put(self.picture[i].getSignal(x,y))
+            label_set.add(self.picture[i].getSignal(x,y))
         if len(label_set) == 1:
             return None, None, None, True
 
