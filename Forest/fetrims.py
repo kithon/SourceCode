@@ -31,8 +31,6 @@ class DecisionForest(object):
         self.picture = picture
         self.test_picture = test_picture
 
-        print_time("fit1", self.file_name)
-        
         for t in xrange(self.num_tree):
             # -*- data -*- #
             data = {}
@@ -69,17 +67,11 @@ class DecisionForest(object):
         predict = [(i,j,k) for i,p in enumerate(test_picture) for j in xrange(p.getSize()[0]) for k in xrange(p.getSize()[1])]
         length = len(predict)
 
-        print_time("fit2", self.file_name)
-            
         current_depth = 0
         isFinish = []
         while (not (all(isFinish) and any(isFinish))) and (d_limit != current_depth):
             current_depth += 1
             isFinish = []
-            # <debug>
-            print self.file_name
-            print "while"
-
 
             # -*- update tree_dic -*-
             for t in xrange(self.num_tree):
@@ -123,6 +115,18 @@ class DecisionForest(object):
             score = count * 1.0 / length
             print_time("depth:%d score = %f" % (current_depth, score), self.file_name)
 
+            # debug get score
+            for t in xrange(self.num_tree):
+                count = 0
+                for p in predict:
+                    label = tree_dic[t, plabel_str][p]
+                    i,x,y = p
+                    if test_picture[i].getSignal(x, y) == label:
+                        count += 1
+                score = count * 1.0 / length
+                print_time("tree:%d score = %f" % (t, score), self.file_name)
+                
+
         node_list = []
         for t in xrange(self.num_tree):
             s_index, e_index = tree_dic[t, index_str]
@@ -131,9 +135,6 @@ class DecisionForest(object):
 
     def getOpt(self, data):
         # -*- unique check -*-
-        # <debug>
-        print_time("getopt", self.file_name)
-
         label_set = set()
         for element in data:
             i,x,y = element
@@ -145,12 +146,12 @@ class DecisionForest(object):
         limit, count = 50, 0
         while True:
             minimum = None
-            threshold = None
-            data = None
-            label = None
+            opt_threshold = None
+            opt_data = None
+            opt_label = None
             for n in xrange(self.num_function):
-                th = self.generate_threshold(data)
-                d_data = self.divide(th, data, self.picture)
+                threshold = self.generate_threshold(data)
+                d_data = self.divide(threshold, data, self.picture)
                 l_data, r_data = d_data
                 l_label, r_label = [], []
                 for l in l_data:
@@ -164,9 +165,11 @@ class DecisionForest(object):
                 gini = self.gini(l_label, r_label)
                 if minimum is None or gini < minimum:
                     minimum = gini
-                    threshold = th
-                    data = d_data
-                    label = [l_label, r_label]
+                    opt_threshold = threshold
+                    opt_data = d_data
+                    l_label = collections.Counter(l_label).most_common()[0][0]
+                    r_label = collections.Counter(r_label).most_common()[0][0]
+                    opt_label = [l_label, r_label]
 
             if minimum is None:
                 count += 1
@@ -175,7 +178,7 @@ class DecisionForest(object):
                 else:
                     return None, None, None, True
 
-            return threshold, data, label, False
+            return opt_threshold, opt_data, opt_label, False
     
     def generate_threshold(self, data):
         selected_dx = self.np_rng.randint(-1*self.radius, 1*self.radius+1)
@@ -295,9 +298,10 @@ def print_parameter(param, FILE_NAME):
     
 def print_time(message, FILE_NAME):
     d = datetime.datetime.today()
-    string = '%s/%s/%s %s:%s:%s.%s %s' % (d.year, d.month, d.day, d.hour, d.minute, d.second, d.microsecond, message)
+    string = '%04d/%02d/%02d %02d:%02d:%02d.%06d %s' % (int(d.year), int(d.month), int(d.day), int(d.hour), int(d.minute), int(d.second), int(d.microsecond), message)
     cmd = 'echo %s >> %s' % (string, FILE_NAME)
     os.system(cmd)
+    #print string
 
         
 ##########################################################
