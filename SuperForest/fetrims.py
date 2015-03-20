@@ -22,7 +22,7 @@ class DecisionForest(object):
         self.file_name = file_name
         self.node_list = []
 
-    def fit(self, picture, test_picture, d_limit=None, overlap=True):
+    def fit(self, picture, test_picture, d_limit=None):
         # -*- tree_dic -*-
         tree_dic = {}
         index_str = "index"
@@ -35,7 +35,7 @@ class DecisionForest(object):
         for t in xrange(self.num_tree):
             # -*- data -*- #
             data = {}
-            rate = 0.7
+            rate = 0.9
             for i,p in enumerate(picture):
                 data_sub = {}
                 super_length = p.getSSize()
@@ -65,6 +65,17 @@ class DecisionForest(object):
         # -*- init predict list -*-   
         predict = [(i,j,k) for i,p in enumerate(test_picture) for j in xrange(p.getSize()[0]) for k in xrange(p.getSize()[1])]
         length = len(predict)
+
+        # max accuracy
+        count = 0
+        for p in predict:
+            i,x,y = p
+            index = test_picture[i].getSIndex(x,y)                
+            label = test_picture[i].getSSignal(index)
+            if test_picture[i].getSignal(x,y) == label:
+                count += 1
+        score = count * 1.0 / length
+        print_time("max score = %f" % score, self.file_name)                
 
         current_depth = 0
         isFinish = []
@@ -256,7 +267,7 @@ class Pic(object):
 
     def setSpixel(self, spixel):
         self.slength = np.max(spixel) + 1
-        self.spixel = spixel.tolist()
+        self.spixel = spixel.T.tolist()
 
         super_dic = {}
         super_count = np.zeros(self.slength)
@@ -267,13 +278,14 @@ class Pic(object):
         super_center = np.zeros((self.slength, 2))
         for x in xrange(self.w):
             for y in xrange(self.h):
+                print self.spixel[x][y], x, y, self.w, self.h
                 super_center[self.spixel[x][y]] += [x, y]
                 super_count[self.spixel[x][y]] += 1
                 super_label[self.spixel[x][y]].append(self.getSignal(x,y))
         for i,c in enumerate(super_count):
             super_center[i] /= c
             
-        self.scenter = super_center.tolist()
+        self.scenter = super_center.astype(np.int64).tolist()
         for i in xrange(self.slength):
             super_dic[i] = collections.Counter(super_label[i]).most_common()[0][0]
         self.sdic = super_dic
@@ -400,7 +412,7 @@ def load_etrims(radius, size, is08, shuffle, name, n_superpixels, compactness, t
     return train_set, test_set
 
 
-def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, n_superpixels, compactness, t_args, file_name):
+def etrims_tree(radius, size, d_limit, unshuffle, four, num, parameter, n_superpixels, compactness, t_args, file_name):
     # ----- initialize -----
     print_parameter([radius, size, d_limit, unshuffle, four, num, t_args], file_name)
     print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d' % (radius, str(d_limit), size, num), file_name)
@@ -414,7 +426,7 @@ def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, n_
         f = DecisionForest(radius=radius, num_function=num, file_name=file_name)
         
         print_time('DecisionTreeForest: train', file_name)
-        f.fit(train_set, test_set, d_limit=d_limit, overlap=cram)
+        f.fit(train_set, test_set, d_limit=d_limit)
         
         print_time('DecisionTreeForest: info', file_name)
         f.info()
@@ -443,7 +455,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     t_args = map(lambda x:x in args.tree, ['d','e','r','b'])
-    etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle, cram=args.cram,
+    etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle,
                 four=args.four, num=args.num, parameter=args.parameter,
                 n_superpixels=args.superpixels, compactness=args.compactness, t_args=t_args, file_name=args.name)
 
