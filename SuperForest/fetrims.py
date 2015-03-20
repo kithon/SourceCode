@@ -4,6 +4,7 @@ import Image
 import random
 import argparse
 import datetime
+import slic as sc
 import collections
 import numpy as np
 
@@ -37,12 +38,11 @@ class DecisionForest(object):
             rate = 0.7
             for i,p in enumerate(picture):
                 data_sub = {}
-                w,h = p.getSize()
+                super_length = p.getSSize()
 
-                for j in xrange(w):
-                    for k in xrange(h):
-                        data_sub[i,j,k] = 0
-                sample = random.sample(data_sub, int(w*h*(1 - rate)))
+                for index in xrange(super_length):
+                    data_sub[i,index] = 0
+                sample = random.sample(data_sub, int(super_length*(1 - rate)))
                 #print_time(str(len(data_sub)), self.file_name)
                 #print_time(str(len(sample)), self.file_name)
                 for s in sample:
@@ -52,10 +52,9 @@ class DecisionForest(object):
             # -*- signal -*-
             predict = {}
             for i,p in enumerate(test_picture):
-                w,h = p.getSize()
-                for j in xrange(w):
-                    for k in xrange(h):
-                        predict[i,j,k] = 0
+                super_length = p.getSSize()
+                for index in xrange(super_length):
+                    predict[i,index] = 0
 
             # -*- init tree_dic -*-
             tree_dic[t, index_str] = [0, 1]
@@ -107,10 +106,11 @@ class DecisionForest(object):
             # -*- get score -*-
             count = 0
             for p in predict:
-                label_list = [tree_dic[t, plabel_str][p] for t in xrange(self.num_tree)]
-                label = collections.Counter(label_list).most_common()[0][0]
                 i,x,y = p
-                if test_picture[i].getSignal(x, y) == label:
+                index = test_picture[i].getSIndex(x,y)                
+                label_list = [tree_dic[t, plabel_str][(i,index)] for t in xrange(self.num_tree)]
+                label = collections.Counter(label_list).most_common()[0][0]
+                if test_picture[i].getSignal(x,y) == label:
                     count += 1
             score = count * 1.0 / length
             print_time("depth:%d score = %f" % (current_depth, score), self.file_name)
@@ -119,9 +119,10 @@ class DecisionForest(object):
             for t in xrange(self.num_tree):
                 count = 0
                 for p in predict:
-                    label = tree_dic[t, plabel_str][p]
                     i,x,y = p
-                    if test_picture[i].getSignal(x, y) == label:
+                    index = test_picture[i].getSIndex(x,y)                
+                    label = tree_dic[t, plabel_str][(i,index)]
+                    if test_picture[i].getSignal(x,y) == label:
                         count += 1
                 score = count * 1.0 / length
                 print_time("tree:%d score = %f" % (t, score), self.file_name)
@@ -137,8 +138,8 @@ class DecisionForest(object):
         # -*- unique check -*-
         label_set = set()
         for element in data:
-            i,x,y = element
-            label_set.add(self.picture[i].getSignal(x,y))
+            i,index = element
+            label_set.add(self.picture[i].getSSignal(index))
         if len(label_set) == 1:
             return None, None, None, True
 
@@ -155,11 +156,11 @@ class DecisionForest(object):
                 l_data, r_data = d_data
                 l_label, r_label = [], []
                 for l in l_data:
-                    i,x,y = l
-                    l_label.append(self.picture[i].getSignal(x,y))
+                    i,index = l
+                    l_label.append(self.picture[i].getSSignal(index))
                 for r in r_data:
-                    i,x,y = r
-                    r_label.append(self.picture[i].getSignal(x,y))
+                    i,index = r
+                    r_label.append(self.picture[i].getSSignal(index))
                 if len(set(l_label)) == 0 or len(set(r_label)) == 0:
                     continue
                 gini = self.gini(l_label, r_label)
@@ -197,11 +198,11 @@ class DecisionForest(object):
         lr_data = [[], []]
         selected_dim, theta = threshold
         for element in data:
-            i, x, y = element
+            i, index = element
             dx,dy,c = selected_dim
-            val = picture[i].getData(x+dx, y+dy)[c] - theta
-            index = val > 0
-            lr_data[index].append(element)
+            val = picture[i].getSData(index, dx, dy)[c] - theta
+            isLR = val > 0
+            lr_data[isLR].append(element)
         return lr_data
 
     def gini(self, l_label, r_label):
@@ -227,11 +228,13 @@ class DecisionForest(object):
 ##########################################################
 
 class Pic(object):
-    __slots__ = ['data', 'signal', 'w', 'h']
-    def __init__(self, data, signal):
+    __slots__ = ['data', 'signal', 'spixel',
+                 'slength', 'scenter', 'sdic', 'w', 'h']
+    def __init__(self, data, signal, spixel):
         self.w, self.h = data.size
         self.setData(data)
         self.setSignal(signal)
+        self.setSpixel(spixel)
 
     def setData(self, data):
         data_list = []
@@ -250,9 +253,36 @@ class Pic(object):
                 temp.append(signal.getpixel((x,y)))
             signal_list.append(temp)
         self.signal = signal_list
+
+    def setSpixel(self, spixel):
+        self.slength = np.max(spixel) + 1
+        self.spixel = spixel.tolist()
+
+        super_dic = {}
+        super_count = np.zeros(self.slength)
+        super_label = []
+        for i in xrange(self.slength):
+            super_label.append([])
+        
+        super_center = np.zeros((self.slength, 2))
+        for x in xrange(self.w):
+            for y in xrange(self.h):
+                super_center[self.spixel[x][y]] += [x, y]
+                super_count[self.spixel[x][y]] += 1
+                super_label[self.spixel[x][y]].append(self.getSignal(x,y))
+        for i,c in enumerate(super_count):
+            super_center[i] /= c
+            
+        self.scenter = super_center.tolist()
+        for i in xrange(self.slength):
+            super_dic[i] = collections.Counter(super_label[i]).most_common()[0][0]
+        self.sdic = super_dic
         
     def getSize(self):
         return self.w, self.h
+
+    def getSSize(self):
+        return self.slength
 
     def getData(self, x, y):
         if x < 0 or x >= self.w:
@@ -268,6 +298,24 @@ class Pic(object):
         # in range
         return self.signal[x][y]
 
+    def getSIndex(self, x, y):
+        return self.spixel[x][y]
+
+    def getSData(self, index, dx, dy):
+        x,y = self.scenter[index]
+        x,y = x+dx, y+dy
+        if x < 0 or x >= self.w:
+            # out of x_range
+            return [0,0,0]
+        if y < 0 or y >= self.h:
+            # out of y_range
+            return [0,0,0]
+        # in range
+        return self.data[x][y]
+
+    def getSSignal(self, index):
+        return self.sdic[index]
+    
     def cropData(self, x, y, radius):
         crop = []
         for dx in range(x-radius, x+radius+1):
@@ -276,22 +324,14 @@ class Pic(object):
         crop = (1. * np.array(crop) / 255).tolist()
         return crop
 
+    def cropSData(self, index, radius):
+        x,y = self.scenter[index]
+        return self.cropData(x,y,radius)
+        
+
 ##########################################################
 ##  print
 ##########################################################
-
-"""
-def print_parameter(param):
-    cmd = 'echo %s >> %s' % (param, PAR_NAME)
-    os.system(cmd)
-    
-def print_time(message):
-    d = datetime.datetime.today()
-    string = '%s/%s/%s %s:%s:%s.%s %s' % (d.year, d.month, d.day, d.hour, d.minute, d.second, d.microsecond, message)
-    cmd = 'echo %s >> %s' % (string, LOG_NAME)
-    os.system(cmd)
-"""
-
 def print_parameter(param, FILE_NAME):
     cmd = 'echo %s >> %s' % (param, FILE_NAME)
     os.system(cmd)
@@ -308,7 +348,7 @@ def print_time(message, FILE_NAME):
 ##  load_etrims
 ##########################################################
     
-def load_etrims(radius, size, is08, shuffle, name, t_index=None):
+def load_etrims(radius, size, is08, shuffle, name, n_superpixels, compactness, t_index=None):
     # ----- make up -----
     isInit = t_index is None
     
@@ -342,10 +382,11 @@ def load_etrims(radius, size, is08, shuffle, name, t_index=None):
         annotation = Image.open(annot_path)
         image_path = im_path + file_name + ".jpg"
         image = Image.open(image_path)
+        spixel = sc.slic_n(np.array(image), n_superpixels, compactness)
         
         # get index and set picture
         index = i in train_index
-        picture = Pic(image, annotation)
+        picture = Pic(image, annotation, spixel)
         test_or_train[index].append(picture)
 
         # print filename
@@ -359,12 +400,12 @@ def load_etrims(radius, size, is08, shuffle, name, t_index=None):
     return train_set, test_set
 
 
-def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, t_args, file_name):
+def etrims_tree(radius, size, d_limit, unshuffle, cram, four, num, parameter, n_superpixels, compactness, t_args, file_name):
     # ----- initialize -----
     print_parameter([radius, size, d_limit, unshuffle, four, num, t_args], file_name)
     print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d' % (radius, str(d_limit), size, num), file_name)
     print_time('eTRIMS: load', file_name)
-    train_set, test_set = load_etrims(radius=radius, size=size, is08=not four, shuffle=not unshuffle, name=file_name)
+    train_set, test_set = load_etrims(radius=radius, size=size, is08=not four, shuffle=not unshuffle, name=file_name, n_superpixels=n_superpixels, compactness=compactness)
     isF, isEF, isREF, isBEF = t_args
     
     # ----- Decision Tree -----
@@ -391,11 +432,11 @@ if __name__ == '__main__':
     parser.add_argument("size", type=int, default=60, nargs='?', help="set data size")
     parser.add_argument("limit", type=int, nargs='?', help="set depth limit")
     parser.add_argument("-u", "--unshuffle", action='store_true',  help="not shuffle dataset")
-    parser.add_argument("-c", "--cram", action='store_false',  help="not overlap")
     parser.add_argument("-f", "--four", action='store_true',  help="use eTRIMS-04 dataset")
     parser.add_argument("-n", "--num", metavar="num", type=int, default=5,  help="set number of function")
     parser.add_argument("-p", "--parameter", metavar='file', type=str, help="set trained parameter")
-    parser.add_argument("-s", "--seed", type=int, default=1, help="seed")
+    parser.add_argument("-c", "--compactness", type=int, default=10, help="compactness")
+    parser.add_argument("-s", "--superpixels", type=int, default=500, help="superpixels")
     parser.add_argument("-t", "--tree", metavar='{d,e,r,b}', default='derb', help="run tree individually")
     
     # ----- etrims_tree -----
@@ -403,6 +444,6 @@ if __name__ == '__main__':
     
     t_args = map(lambda x:x in args.tree, ['d','e','r','b'])
     etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle, cram=args.cram,
-                four=args.four, num=args.num, parameter=args.parameter, t_args=t_args, file_name=args.name)
+                four=args.four, num=args.num, parameter=args.parameter, n_superpixels=args.superpixels, compactness=,t_args=t_args, file_name=args.name)
 
     
