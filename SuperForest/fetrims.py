@@ -444,6 +444,7 @@ if __name__ == '__main__':
     
     t_args = map(lambda x:x in args.tree, ['d','e','r','b'])
     etrims_tree(radius=args.radius, size=args.size, d_limit=args.limit, unshuffle=args.unshuffle, cram=args.cram,
-                four=args.four, num=args.num, parameter=args.parameter, n_superpixels=args.superpixels, compactness=,t_args=t_args, file_name=args.name)
+                four=args.four, num=args.num, parameter=args.parameter,
+                n_superpixels=args.superpixels, compactness=args.compactness, t_args=t_args, file_name=args.name)
 
     
