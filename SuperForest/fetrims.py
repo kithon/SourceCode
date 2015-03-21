@@ -137,7 +137,23 @@ class DecisionForest(object):
                         count += 1
                 score = count * 1.0 / length
                 print_time("tree:%d score = %f" % (t, score), self.file_name)
-                
+
+        print_time("drawing ", self.file_name)
+        predict_dic = {}
+        for p in predict:
+            i,x,y = p
+            index = test_picture[i].getSIndex(x,y)                
+            label_list = [tree_dic[t, plabel_str][(i,index)] for t in xrange(self.num_tree)]
+            label = collections.Counter(label_list).most_common()[0][0]
+            predict_dic[(i, index)] = label
+
+        dir_name = "predict_picture/"
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+        self.draw_test(predict_dic, dir_name + "forest_" )  
+        for t in xrange(self.num_tree):
+            file_name = dir_name + "tree" + str(t) + "_"
+            self.draw_test(tree_dic[t, plabel_str], file_name)
 
         node_list = []
         for t in xrange(self.num_tree):
@@ -227,6 +243,18 @@ class DecisionForest(object):
                 sub = (1. * sub_size / set_size)
                 g += sub * p * (1. - p)
         return g
+
+    def draw_test(self, predict, file_name):
+        for i,p in enumerate(self.tes_picture):
+            w,h = p.getSize()
+            image = Image.new('P', (w,h))
+            image.putpalette(p.palette)
+            for x in xrange(w):
+                for y in xrange(h):
+                    index = p.getSIndex(x,y)
+                    image.putpixel(predict[(i, index)])
+            name = file_name + str(i) + ".png"
+            image.save(name)
         
     def info(self):
         if self.node_list is None:
@@ -239,10 +267,11 @@ class DecisionForest(object):
 ##########################################################
 
 class Pic(object):
-    __slots__ = ['data', 'signal', 'spixel',
+    __slots__ = ['data', 'signal', 'spixel', 'palette',
                  'slength', 'scenter', 'sdic', 'w', 'h']
     def __init__(self, data, signal, spixel):
         self.w, self.h = data.size
+        self.palette = data.getpalette()
         self.setData(data)
         self.setSignal(signal)
         self.setSpixel(spixel)
@@ -278,7 +307,6 @@ class Pic(object):
         super_center = np.zeros((self.slength, 2))
         for x in xrange(self.w):
             for y in xrange(self.h):
-                print self.spixel[x][y], x, y, self.w, self.h
                 super_center[self.spixel[x][y]] += [x, y]
                 super_count[self.spixel[x][y]] += 1
                 super_label[self.spixel[x][y]].append(self.getSignal(x,y))
