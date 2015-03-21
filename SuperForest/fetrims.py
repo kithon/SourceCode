@@ -245,7 +245,7 @@ class DecisionForest(object):
         return g
 
     def draw_test(self, predict, file_name):
-        for i,p in enumerate(self.tes_picture):
+        for i,p in enumerate(self.test_picture):
             w,h = p.getSize()
             image = Image.new('P', (w,h))
             image.putpalette(p.palette)
