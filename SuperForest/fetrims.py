@@ -90,8 +90,8 @@ class DecisionForest(object):
                 for index in xrange(s_index, e_index):
                     train = tree_dic[t, dindex_str]
                     test  = tree_dic[t, pindex_str]
-                    train_data = [list(x) for x in train.iterkeys() if train[x] == index]
-                    test_data  = [list(x) for x in test.iterkeys() if test[x] == index]
+                    train_data = [list(k) for k in train.iterkeys() if train[k] == index]
+                    test_data  = [list(k) for k in test.iterkeys() if test[k] == index]
                     test_label = tree_dic[t, plabel_str]
                     threshold, d_data, d_label, terminal = self.getOpt(train_data)
                     if not terminal:
