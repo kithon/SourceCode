@@ -248,11 +248,11 @@ class DecisionForest(object):
         for i,p in enumerate(self.test_picture):
             w,h = p.getSize()
             image = Image.new('P', (w,h))
-            image.putpalette(p.palette)
+            image.putpalette(p.getPalette())
             for x in xrange(w):
                 for y in xrange(h):
                     index = p.getSIndex(x,y)
-                    image.putpixel(predict[(i, index)])
+                    image.putpixel((x,y), predict[(i, index)])
             name = file_name + str(i) + ".png"
             image.save(name)
         
@@ -271,7 +271,8 @@ class Pic(object):
                  'slength', 'scenter', 'sdic', 'w', 'h']
     def __init__(self, data, signal, spixel):
         self.w, self.h = data.size
-        self.palette = data.getpalette()
+        self.palette = signal.getpalette()
+        print signal.getpalette()
         self.setData(data)
         self.setSignal(signal)
         self.setSpixel(spixel)
@@ -338,6 +339,9 @@ class Pic(object):
         # in range
         return self.signal[x][y]
 
+    def getPalette(self):
+        return self.palette        
+    
     def getSIndex(self, x, y):
         return self.spixel[x][y]
 
