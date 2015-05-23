@@ -1,0 +1,31 @@
+# -*- coding: utf-8 -*-
+import semantic4rest
+
+# config data
+boxSize = 5# 15
+
+dataSize = 6
+unShuffle = False
+sampleFreq = 4 # 1
+
+# config Tree Type
+isELMF = True
+
+# config forest
+dataPerTree = 0.5
+depthLimit = 5
+numThreshold = 4 # 400
+numTree = 5
+
+# config ELMF
+numHidden = boxSize * boxSize * 3 * 2
+
+# config fileName
+fileName = "s_test1.log"
+
+if __name__ == '__main__':
+    semantic4rest.do_forest(boxSize, dataSize, unShuffle, sampleFreq,
+                            isELMF,
+                            dataPerTree, depthLimit, numThreshold, numTree,
+                            numHidden,
+                            fileName)

@@ -2,6 +2,7 @@
 import os
 import random
 import datetime
+import operator
 import numpy as np
 import collections
 from PIL import Image
@@ -14,7 +15,7 @@ def sigmoid(x):
 ##  ELMTree
 ##########################################################
 class ELMTree(object):
-    def __init__(self, radius, sampleSize, numThreshold, numELM, fileName):
+    def __init__(self, radius, sampleSize, numThreshold, numELM, weight, fileName):
         seed = 123
         if radius is None:
             Exception('Error: radius is None.')
@@ -25,6 +26,7 @@ class ELMTree(object):
         self.fileName = fileName
         self.elm_hidden = numELM
         self.elm_coef = None
+        self.weight = weight
         self.dir_name = 'elm/'
 
     def train(self, train_pic, freq, limit):
@@ -84,8 +86,8 @@ class ELMTree(object):
             isTerminal, param, child = node
             if isTerminal:
                 # terminal node
-                label = self.getLabelList(data, train_pic)
-                node_list[index] = [isTerminal, label, []]
+                hist = self.getHist(data, train_pic)
+                node_list[index] = [isTerminal, hist, []]
             else:
                 # inner node
                 l_index, r_index = child
@@ -98,10 +100,39 @@ class ELMTree(object):
         # set grown node_list 
         self.node_list = node_list                    
 
-    def test(self, input, test_pic):
+    def test(self, test_pic):
+        # initialize input
+        input = {}
+        for i in xrange(len(test_pic)):
+            w,h = test_pic[i].getSize()
+            for j in xrange(w):
+                for k in xrange(h):
+                    input[i,j,k] = 0
+
+        # predict class distribution
+        predict = {}
+        for index,node in enumerate(self.node_list): 
+            data = [list(x) for x in input.iterkeys() if input[x] == index]
+            isTerminal, param, child = node
+            if isTerminal:
+                # terminal node
+                for d in data:
+                    predict[tuple(d)] = param
+            else:
+                # inner node
+                l_index, r_index = child
+                l_data, l_label, r_data, r_label = self.divide(data, param, test_pic)
+                for l in l_data:
+                    input[tuple(l)] = l_index
+                for r in r_data:
+                    input[tuple(r)] = r_index
+        return predict
+
+    def test_sub(self, input, test_pic):
         # get class distribution
         index = 0
         while True:
+            print_time('index:%d' % index, self.fileName)
             node = self.node_list[index]
             isTerminal, param, child = node
             if isTerminal:
@@ -129,8 +160,8 @@ class ELMTree(object):
         weight, bias, beta = param
         i,x,y = element
         crop = picture[i].cropData(x, y, self.radius)
-        hidden = sigmoid(np.dot(weight, crop) + bias)
-        output = np.dot(hidden, beta) # sigmoid(np.dot(hidden, beta))
+        hidden = sigmoid(np.dot(weight.T, crop) + bias)
+        output = np.dot(beta.T, hidden) # sigmoid(np.dot(hidden, beta))
         return output - 0.5 # constant theta
 
     def gini(self, l_label, r_label):
@@ -153,6 +184,14 @@ class ELMTree(object):
             i,x,y = element
             label_list.append(data_pic[i].getSignal(x,y))
         return label_list
+
+    def getHist(self, data, data_pic):
+        label_list = self.getLabelList(data, data_pic)
+        hist = collections.Counter(label_list)
+        for h in hist.most_common():
+            label_index = h[0]
+            hist[label_index] *= self.weight[label_index]        
+        return {i:hist[i] for i in xrange(1,9)} # for Etrims8
     
     def getOptParam(self, data, data_pic, forceTerminal):
         # check terminal 
@@ -165,6 +204,7 @@ class ELMTree(object):
         obj = None
         optParam = None
         for i in xrange(self.numThreshold):
+            print_time('th: %i' % i, self.fileName)
             param = self.generate_threshold(data)
             l_data, l_label, r_data, r_label = self.divide(data, param, data_pic)
             g = self.gini(l_label, r_label)
@@ -179,7 +219,7 @@ class ELMTree(object):
         # inner
         return False, optParam                
         
-    def generate_threshold(self, numHidden, data):
+    def generate_threshold(self, data):
         # crop data
         sample_input, label = [], []
         num = min(len(data), self.sampleSize)
@@ -202,7 +242,7 @@ class ELMTree(object):
         sample_signal = [1 if l in label_index else 0 for l in label]
             
         # train elm
-        elm = BinaryELMClassifier(n_hidden=numHiden)
+        elm = BinaryELMClassifier(n_hidden=self.elm_hidden)
         weight, bias, beta = elm.fit(sample_input, sample_signal)
         return weight, bias, beta
             
@@ -347,20 +387,65 @@ def compute_weight(data_pic):
 ##  handle forest
 ##########################################################
 
-def forest_test(forest, test_pic, weight):
-    forest_pixel(forest, test_pic, weight)
+def forest_test(forest, test_pic):
+    forest_pixel(forest, test_pic)
     
-def forest_pixel(forest, test_pic, weight):
+def forest_pixel(forest, test_pic):
+    print_str = "s_test_sub1.log"
+    
+    hist = {}
+    hist_list = []
+    for i,tree in enumerate(forest):
+        print_time('tree:%d' % i, print_str)
+        hist_list.append(tree.test(test_pic))
+
+    print_time('predict', print_str)       
+    for i,p in enumerate(test_pic):
+        width, height = p.getSize()
+        for j in xrange(width):
+            for k in xrange(height):
+                hist[i,j,k] = {c:sum(map(lambda x:x[c], map(lambda h:h[i,j,k], hist_list))) for c in xrange(1,9)}
+        
+    print_time('score', print_str)
+    count = 0
+    predict = {}
+    count_list = [0 for col in xrange(len(forest))]
+    predict_list = [{} for col in xrange(len(forest))]
+    for i,p in enumerate(test_pic):
+        width, height = p.getSize()
+        for j in xrange(width):
+            for k in xrange(height):
+                label = test_pic[i].getSignal(j,k)
+                # forest predict & count
+                predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
+                if predict[i,j,k] == label:
+                    count += 1
+
+                # tree predict & count
+                for t,tree in enumerate(forest):
+                    predict_list[t][i,j,k] = max(hist_list[t][i,j,k].iteritems(), key=operator.itemgetter(1))[0]
+                    if predict_list[t][i,j,k] == label:
+                        count_list[t] += 1
+
+    print_time('draw', print_str)    
+    draw_pixel(predict, test_pic, "forest")
+    for i,p in enumerate(predict_list):
+        draw_pixel(p, test_pic, 'tree%d_' % i)
+    return 1. * count / len(predict)
+
+def forest_pixel_sub(forest, test_pic, weight):
     count = 0
     predict = {}
     for i,p in enumerate(test_pic):
-        w,h = p.getSize()
-        for j in xrange(w):
-            for k in xrange(h):
+        width, height = p.getSize()
+        print_time("picture:%d" % i, "s_test_sub.log")
+        for j in xrange(width):
+            print_time("j:%d" % j, "s_test_sub.log")
+            for k in xrange(height):
                 label = []
                 for tree in forest:
                     input = [i,j,k]
-                    label += tree.test(input, test_pic)
+                    label += tree.test_sub(input, test_pic)
 
                 hist = collections.Counter(label)
                 for h in hist.most_common():
@@ -400,7 +485,7 @@ def draw_superpixel(self, predict, file_name):
         image.save(name)
 
 def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
-              isELMF
+              isELMF,
               dataPerTree, depthLimit, numThreshold, numTree,
               numHidden,
               fileName):
@@ -432,12 +517,12 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
         for i in xrange(numTree):
             print_time('tree: %i' % i, fileName)
             tree = ELMTree(radius=radius, sampleSize=sampleSize, numThreshold=numThreshold,
-                           numELM = numHiden, fileName=fileName)        
-            tree.train(train=train_pic, freq=sampleFreq, limit=depthLimit)
+                           numELM = numHidden, weight=weight, fileName=fileName)        
+            tree.train(train_pic=train_pic, freq=sampleFreq, limit=depthLimit)
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, weight)
+        forest_test(forest, test_pic)
 
 
     # ----- finish -----
