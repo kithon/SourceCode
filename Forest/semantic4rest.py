@@ -404,7 +404,8 @@ def forest_pixel(forest, test_pic):
         width, height = p.getSize()
         for j in xrange(width):
             for k in xrange(height):
-                hist[i,j,k] = {c:sum(map(lambda x:x[c], map(lambda h:h[i,j,k], hist_list))) for c in xrange(1,9)}
+                for c in xrange(1,9):
+                    hist[i,j,k] = {c:sum(map(lambda x:x[c], map(lambda h:h[i,j,k], hist_list)))}
         
     print_time('score', print_str)
     count = 0
