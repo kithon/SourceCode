@@ -3,6 +3,7 @@ import os
 import random
 import datetime
 import operator
+import slic as sc
 import numpy as np
 import collections
 from PIL import Image
@@ -47,7 +48,9 @@ class ELMTree(object):
         node_list = []
         node_length = 1
         currentDepth = 0
-        while s_index < e_index:
+        while s_index < e_index and currentDepth < limit:
+            print_time("depth:%d" % (currentDepth), self.fileName)
+            currentDepth += 1
             for index in xrange(s_index, e_index):
                 forceTerminal = not currentDepth < limit
                 data = [list(x) for x in sample.iterkeys() if sample[x] == index]
@@ -66,10 +69,8 @@ class ELMTree(object):
                     node_list.append([isTerminal, param, [l_index, r_index]])
                     
             # update
-            currentDepth += 1
             s_index = e_index
             e_index = node_length
-            print_time("depth:%d" % (currentDepth), self.fileName)
             
         # initialize input
         print_time('get class distribution', self.fileName)
@@ -250,9 +251,7 @@ class ELMTree(object):
         if not self.node_length is None:
             print_time("Information: number of node = %d" % (self.node_length), self.file_name)
         else:
-            print_time("Information: self.node_length is not defined", self.file_name)
-
-    
+            print_time("Information: self.node_length is not defined", self.file_name)    
 
         
 ##########################################################
@@ -260,11 +259,15 @@ class ELMTree(object):
 ##########################################################
 
 class Pic(object):
-    __slots__ = ['data', 'signal', 'w', 'h']
-    def __init__(self, data, signal):
+    __slots__ = ['data', 'signal', 'spixel', 'palette',
+                 'slength', 'scenter', 'sdic', 'w', 'h']
+    def __init__(self, data, signal, spixel):
         self.w, self.h = data.size
+        self.palette = signal.getpalette()
+        print signal.getpalette()
         self.setData(data)
         self.setSignal(signal)
+        self.setSpixel(spixel)
 
     def setData(self, data):
         data_list = []
@@ -284,8 +287,35 @@ class Pic(object):
             signal_list.append(temp)
         self.signal = signal_list
 
+    def setSpixel(self, spixel):
+        self.slength = np.max(spixel) + 1
+        self.spixel = spixel.T.tolist()
+
+        super_dic = {}
+        super_count = np.zeros(self.slength)
+        super_label = []
+        for i in xrange(self.slength):
+            super_label.append([])
+        
+        super_center = np.zeros((self.slength, 2))
+        for x in xrange(self.w):
+            for y in xrange(self.h):
+                super_center[self.spixel[x][y]] += [x, y]
+                super_count[self.spixel[x][y]] += 1
+                super_label[self.spixel[x][y]].append(self.getSignal(x,y))
+        for i,c in enumerate(super_count):
+            super_center[i] /= c
+            
+        self.scenter = super_center.astype(np.int64).tolist()
+        for i in xrange(self.slength):
+            super_dic[i] = collections.Counter(super_label[i]).most_common()[0][0]
+        self.sdic = super_dic
+        
     def getSize(self):
         return self.w, self.h
+
+    def getSSize(self):
+        return self.slength
 
     def getData(self, x, y):
         if x < 0 or x >= self.w:
@@ -301,6 +331,27 @@ class Pic(object):
         # in range
         return self.signal[x][y]
 
+    def getPalette(self):
+        return self.palette        
+    
+    def getSIndex(self, x, y):
+        return self.spixel[x][y]
+
+    def getSData(self, index, dx, dy):
+        x,y = self.scenter[index]
+        x,y = x+dx, y+dy
+        if x < 0 or x >= self.w:
+            # out of x_range
+            return [0,0,0]
+        if y < 0 or y >= self.h:
+            # out of y_range
+            return [0,0,0]
+        # in range
+        return self.data[x][y]
+
+    def getSSignal(self, index):
+        return self.sdic[index]
+    
     def cropData(self, x, y, radius):
         crop = []
         for dx in range(x-radius, x+radius+1):
@@ -308,6 +359,10 @@ class Pic(object):
                 crop += self.getData(dx, dy)
         crop = (1. * np.array(crop) / 255).tolist()
         return crop
+
+    def cropSData(self, index, radius):
+        x,y = self.scenter[index]
+        return self.cropData(x,y,radius)
     
 ##########################################################
 ##  print
@@ -328,7 +383,7 @@ def print_time(message, FILE_NAME):
 ##  load_etrims
 ##########################################################
     
-def load_etrims(radius, size, shuffle, name):
+def load_etrims(radius, size, shuffle, name, n_superpixels, compactness):
     # ----- path initialize -----
     root_path = '../Dataset/etrims-db_v1/'
     an_name = 'annotations/'
@@ -356,10 +411,12 @@ def load_etrims(radius, size, shuffle, name):
         annotation = Image.open(annot_path)
         image_path = im_path + file_name + ".jpg"
         image = Image.open(image_path)
+        spixel = sc.slic_n(np.array(image), n_superpixels, compactness)
+
         
         # get index and set picture
         index = i in train_index
-        picture = Pic(image, annotation)
+        picture = Pic(image, annotation, spixel)
         test_or_train[index].append(picture)
 
         # print filename
@@ -387,79 +444,82 @@ def compute_weight(data_pic):
 ##  handle forest
 ##########################################################
 
-def forest_test(forest, test_pic):
-    forest_pixel(forest, test_pic)
-    
-def forest_pixel(forest, test_pic):
-    print_str = "s_test_sub1.log"
-    
+def forest_test(forest, test_pic, fileName):
+
+    # ---------- get class distribution (pixel-wise) ----------
     hist = {}
     hist_list = []
     for i,tree in enumerate(forest):
-        print_time('tree:%d' % i, print_str)
+        print_time('tree:%d' % i, fileName)
         hist_list.append(tree.test(test_pic))
 
-    print_time('predict', print_str)       
+    print_time('predict', fileName)       
     for i,p in enumerate(test_pic):
         width, height = p.getSize()
         for j in xrange(width):
             for k in xrange(height):
                 for c in xrange(1,9):
-                    hist[i,j,k] = {c:sum(map(lambda x:x[c], map(lambda h:h[i,j,k], hist_list)))}
+                    hist[i,j,k][c] = sum(map(lambda x:x[c], map(lambda h:h[i,j,k], hist_list)))
+
+    # ---------- pixel wise ----------
+    # """
+    # -*- get predict and score -*-
+    predict_list, score_list = [], []
+    predict, score = predict_pixel(hist, test_pic)
+    for h in hist_list:
+        p,s = predict_pixel(h, test_pic)
+        predict_list.append(p)
+        score_list.append(s)
+
+    print_time('forest_pixel: %f' % (score), fileName)    
+    for i,s in enumerate(score_list):
+        print_time('tree&d_pixel: %f' % (i, s), fileName)
         
-    print_time('score', print_str)
+    print_time('draw_pixel', fileName)    
+    draw_pixel(predict, test_pic, "forest_pixel")
+    for i,p in enumerate(predict_list):
+        draw_pixel(p, test_pic, 'tree%d_pixel' % i)
+    # """
+
+    # ---------- super-pixel wise ----------
+    # """
+    # -*- get predict and score -*-
+    predict_list, score_list = [], []
+    predict, score = predict_superpixel(hist, test_pic)
+    for h in hist_list:
+        p,s = predict_superpixel(h, test_pic)
+        predict_list.append(p)
+        score_list.append(s)
+
+    print_time('forest_super: %f' % (score), fileName)    
+    for i,s in enumerate(score_list):
+        print_time('tree&d_super: %f' % (i, s), fileName)
+        
+    print_time('draw_super', fileName)    
+    draw_superpixel(predict, test_pic, "forest_super")
+    for i,p in enumerate(predict_list):
+        draw_superpixel(p, test_pic, 'tree%d_super' % i)
+    # """
+
+        
+def predict_pixel(hist, picture):
+    # ---------- pixel wise ----------
     count = 0
     predict = {}
-    count_list = [0 for col in xrange(len(forest))]
-    predict_list = [{} for col in xrange(len(forest))]
-    for i,p in enumerate(test_pic):
+    for i,p in enumerate(picture):
         width, height = p.getSize()
         for j in xrange(width):
             for k in xrange(height):
-                label = test_pic[i].getSignal(j,k)
-                # forest predict & count
+                label = picture[i].getSignal(j,k)
+                # predict & count
                 predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
                 if predict[i,j,k] == label:
                     count += 1
-
-                # tree predict & count
-                for t,tree in enumerate(forest):
-                    predict_list[t][i,j,k] = max(hist_list[t][i,j,k].iteritems(), key=operator.itemgetter(1))[0]
-                    if predict_list[t][i,j,k] == label:
-                        count_list[t] += 1
-
-    print_time('draw', print_str)    
-    draw_pixel(predict, test_pic, "forest")
-    for i,p in enumerate(predict_list):
-        draw_pixel(p, test_pic, 'tree%d_' % i)
-    return 1. * count / len(predict)
-
-def forest_pixel_sub(forest, test_pic, weight):
-    count = 0
-    predict = {}
-    for i,p in enumerate(test_pic):
-        width, height = p.getSize()
-        print_time("picture:%d" % i, "s_test_sub.log")
-        for j in xrange(width):
-            print_time("j:%d" % j, "s_test_sub.log")
-            for k in xrange(height):
-                label = []
-                for tree in forest:
-                    input = [i,j,k]
-                    label += tree.test_sub(input, test_pic)
-
-                hist = collections.Counter(label)
-                for h in hist.most_common():
-                    label_index = h[0]
-                    hist[label_index] *= weight[label_index]
-                predict[i,j,k] = hist.most_common()[0][0]
-                if predict[i,j,k] == test_pic[i].getSignal(j,k):
-                    count += 1
-                    
-    draw_pixel(predict, test_pic, "forest")
-    return 1. * count / len(predict)
+    length = len(predict)
+    return predict, (1. * count / length)
 
 def draw_pixel(predict, picture, file_name):
+    # ---------- pixel wise ----------
     for i,p in enumerate(picture):
         w,h = p.getSize()
         image = Image.new('P', (w,h))
@@ -469,19 +529,51 @@ def draw_pixel(predict, picture, file_name):
                 image.putpixel((j,k), predict[i,j,k])
         name = file_name + str(i) + ".png"
         image.save(name)
+    
+def predict_superpixel(hist, picture):
+    # ---------- super-pixel wise ----------
+    # compress hist
+    length = 0
+    super_hist = {}
+    for i,p in enumerate(picture):
+        width, height = p.getSize()
+        length += (width * height)
+        for index in xrange(p.getSSize()):
+            super_hist[i,index] = {col:0 for col in xrange(1,9)}         
+        for j in xrange(width):
+            for k in xrange(height):
+                index = p.getSIndex(j,k)
+                for col in xrange(1,9):
+                    super_hist[i,index][col] = super_hist[i,index][col] + hist[i,j,k][col] 
 
-def forest_superpixel(forest, test_pic, weight):
-    return
+    # predict
+    predict = {}
+    for i,p in enumerate(picture):
+        for index in xrange(p.getSSize()):
+            predict[i,index] = max(super_hist[i,index].iteritems(), key=operator.itemgetter(1))[0]
 
-def draw_superpixel(self, predict, file_name):
-    for i,p in enumerate(self.test_picture):
+    # count
+    count = 0
+    for i,p in enumerate(picture):
+        width, height = p.getSize()
+        for j in xrange(width):
+            for k in xrange(height):
+                label = p.getSignal(j,k)
+                index = p.getSIndex(j,k)
+                if predict[i,index] == label:
+                    count += 1
+    return predict, (1. * count / length)    
+                    
+def draw_superpixel(predict, picture, file_name):
+    # ---------- super-pixel wise ----------
+    for i,p in enumerate(picture):
         w,h = p.getSize()
         image = Image.new('P', (w,h))
         image.putpalette(p.getPalette())
-        for x in xrange(w):
-            for y in xrange(h):
-                index = p.getSIndex(x,y)
-                image.putpixel((x,y), predict[(i, index)])
+        for j in xrange(w):
+            for k in xrange(h):
+                index = p.getSindex(j,k)
+                image.putpixel((j,k), predict[i,index])
         name = file_name + str(i) + ".png"
         image.save(name)
 
@@ -489,6 +581,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
               isELMF,
               dataPerTree, depthLimit, numThreshold, numTree,
               numHidden,
+              n_superpixels, compactness,
               fileName):
     # complement (あとでパラメータとして書き加える)
     sampleSize = boxSize * boxSize * 3
@@ -498,7 +591,8 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
 
     radius = (boxSize - 1) / 2
     train_pic, test_pic = load_etrims(radius=radius, size=dataSize,
-                                      shuffle=not unShuffle, name=fileName)
+                                      shuffle=not unShuffle, name=fileName,
+                                      n_superpixels=n_superpixels, compactness=compactness)
 
     print_parameter([boxSize, dataSize, unShuffle, sampleFreq], fileName)
     print_parameter([isELMF], fileName)
@@ -523,7 +617,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic)
+        forest_test(forest, test_pic, fileName)
 
 
     # ----- finish -----

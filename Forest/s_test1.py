@@ -20,6 +20,10 @@ numTree = 5
 # config ELMF
 numHidden = boxSize * boxSize * 3 * 2
 
+# config slic
+n_superpixels = 500
+compactness = 10
+
 # config fileName
 fileName = "s_test1.log"
 
@@ -28,4 +32,5 @@ if __name__ == '__main__':
                             isELMF,
                             dataPerTree, depthLimit, numThreshold, numTree,
                             numHidden,
+                            n_superpixels, compactness,
                             fileName)
