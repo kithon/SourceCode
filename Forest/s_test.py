@@ -2,7 +2,7 @@
 import semantic4rest
 
 # config data
-boxSize = 5# 15
+boxSize = 15# 15
 
 dataSize = 6
 unShuffle = False
@@ -13,12 +13,16 @@ isELMF = True
 
 # config forest
 dataPerTree = 0.5
-depthLimit = 5
+depthLimit = 10
 numThreshold = 4 # 400
 numTree = 5
 
 # config ELMF
 numHidden = boxSize * boxSize * 3 * 2
+
+# config slic
+n_superpixels = 500
+compactness = 10
 
 # config fileName
 fileName = "s_test.log"
@@ -28,4 +32,5 @@ if __name__ == '__main__':
                             isELMF,
                             dataPerTree, depthLimit, numThreshold, numTree,
                             numHidden,
+                            n_superpixels, compactness,
                             fileName)

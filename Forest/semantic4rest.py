@@ -264,7 +264,6 @@ class Pic(object):
     def __init__(self, data, signal, spixel):
         self.w, self.h = data.size
         self.palette = signal.getpalette()
-        print signal.getpalette()
         self.setData(data)
         self.setSignal(signal)
         self.setSpixel(spixel)
@@ -458,6 +457,7 @@ def forest_test(forest, test_pic, fileName):
         width, height = p.getSize()
         for j in xrange(width):
             for k in xrange(height):
+                hist[i,j,k] = {}
                 for c in xrange(1,9):
                     hist[i,j,k][c] = sum(map(lambda x:x[c], map(lambda h:h[i,j,k], hist_list)))
 
@@ -473,7 +473,7 @@ def forest_test(forest, test_pic, fileName):
 
     print_time('forest_pixel: %f' % (score), fileName)    
     for i,s in enumerate(score_list):
-        print_time('tree&d_pixel: %f' % (i, s), fileName)
+        print_time('tree%d_pixel: %f' % (i, s), fileName)
         
     print_time('draw_pixel', fileName)    
     draw_pixel(predict, test_pic, "forest_pixel")
@@ -493,7 +493,7 @@ def forest_test(forest, test_pic, fileName):
 
     print_time('forest_super: %f' % (score), fileName)    
     for i,s in enumerate(score_list):
-        print_time('tree&d_super: %f' % (i, s), fileName)
+        print_time('tree%d_super: %f' % (i, s), fileName)
         
     print_time('draw_super', fileName)    
     draw_superpixel(predict, test_pic, "forest_super")
@@ -572,7 +572,7 @@ def draw_superpixel(predict, picture, file_name):
         image.putpalette(p.getPalette())
         for j in xrange(w):
             for k in xrange(h):
-                index = p.getSindex(j,k)
+                index = p.getSIndex(j,k)
                 image.putpixel((j,k), predict[i,index])
         name = file_name + str(i) + ".png"
         image.save(name)
