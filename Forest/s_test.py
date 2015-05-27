@@ -5,7 +5,7 @@ import semantic4rest
 boxSize = 15# 15
 
 dataSize = 6
-unShuffle = False
+unShuffle = True
 sampleFreq = 4 # 1
 
 # config Tree Type
@@ -13,7 +13,7 @@ isELMF = True
 
 # config forest
 dataPerTree = 0.5
-depthLimit = 10
+depthLimit = 5
 numThreshold = 4 # 400
 numTree = 5
 
