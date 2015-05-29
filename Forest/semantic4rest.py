@@ -7,7 +7,7 @@ import slic as sc
 import numpy as np
 import collections
 from PIL import Image
-from extreme import BinaryELMClassifier
+from extreme import StackedELMAutoEncoder, BinaryELMClassifier
 
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
@@ -158,8 +158,8 @@ class ELMTree(object):
         return l_data, l_label, r_data, r_label
 
     def function(self, element, param, picture):
-        weight, bias, beta = param
         i,x,y = element
+        weight, bias, beta = param
         crop = picture[i].cropData(x, y, self.radius)
         hidden = sigmoid(np.dot(weight.T, crop) + bias)
         output = np.dot(beta.T, hidden) # sigmoid(np.dot(hidden, beta))
@@ -253,6 +253,99 @@ class ELMTree(object):
         else:
             print_time("Information: self.node_length is not defined", self.file_name)    
 
+##########################################################
+##  ELMAETree
+##########################################################
+class ELMAETree(ELMTree):
+    def __init__(self, radius, sampleSize, numThreshold, numELM, weight, fileName):
+        seed = 123
+        if radius is None:
+            Exception('Error: radius is None.')
+        self.radius = radius
+        self.sampleSize = sampleSize
+        self.numThreshold = numThreshold
+        self.np_rng = np.random.RandomState(seed)
+        self.fileName = fileName
+        self.elm_hidden = numELM
+        self.elm_coef = None
+        self.weight = weight
+        self.dir_name = 'elmae/'
+
+    def function(self, element, param, picture):
+        i, x, y = element
+        selected_dim, theta, betas, biases = param
+        crop = self.picture[i].cropData(x, y, self.radius)
+        for i, beta in enumerate(betas):
+            bias = biases[i]
+            crop = sigmoid(np.dot(crop, beta.T) + bias)
+        return crop[selected_dim] - theta
+        
+    def generate_threshold(self, data):
+        #print "Generate ", size, " divide functions"
+        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=self.visualize)
+        sample = []
+        num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
+        sample_index = random.sample(data, num)
+        for temp in sample_index:
+            i,x,y = temp
+            sample.append(self.picture[i].cropData(x, y, self.radius))
+        betas, biases = selmae.fit(sample)
+
+        numpy_data = np.array(selmae.extraction(sample))
+        selected_dim = self.np_rng.randint(self.elm_hidden[-1])
+        selected_row = numpy_data.T[selected_dim]
+        min_row = selected_row.min()
+        max_row = selected_row.max()
+        theta = self.np_rng.rand() * (max_row - min_row) + min_row
+        return selected_dim, theta, betas, biases
+
+##########################################################
+##  STTree
+##########################################################
+
+class STTree(ELMTree):
+    def __init__(self, radius, numThreshold, weight, fileName):
+        seed = 123
+        if radius is None:
+            Exception('Error: radius is None.')
+        self.radius = radius
+        self.numThreshold = numThreshold
+        self.np_rng = np.random.RandomState(seed)
+        self.fileName = fileName
+        self.weight = weight
+        self.func = ['add', 'sub', 'abs', 'uni']
+        self.dir_name = 'st/'
+
+    def function(self, element, param, picture):
+        i, x, y = element
+        f, pos, theta = param
+        [x1, y1, c1], [x2, y2, c2] = pos
+
+        if f == 'add':
+            return picture[i].getData(x + x1, y + y1)[c1] + picture[i].getData(x + x2, y + y2)[c2] - theta
+        if f == 'sub':
+            return picture[i].getData(x + x1, y + y1)[c1] - picture[i].getData(x + x2, y + y2)[c2] - theta
+        if f == 'abs':
+            return abs(picture[i].getData(x + x1, y + y1)[c1] - picture[i].getData(x + x2, y + y2)[c2]) - theta
+        if f == 'uni':
+            return picture[i].getData(x + x1, y + y1)[c1] - theta
+        
+    def generate_threshold(self, data):
+        f = self.func[random.randint(0, len(self.func)-1)]
+        theta = random.random()
+        x1, y1, x2, y2 = [random.randint(-1 * self.radius, self.radius) for col in xrange(4)]
+        c1, c2 = [random.randint(0, 2) for col in xrange(2)]
+        pos = [[x1, y1, c1], [x2, y2, c2]]
+        theta = random.random()
+        if f == 'add':
+            theta = random.random() * 2
+        if f == 'sub':
+            theta = random.random() * 2 - 1
+        if f == 'abs':
+            theta = random.random()
+        if f == 'uni':
+            theta = random.random()        
+        return f, pos, theta
         
 ##########################################################
 ##  Pic
@@ -465,9 +558,9 @@ def forest_test(forest, test_pic, fileName):
     # """
     # -*- get predict and score -*-
     predict_list, score_list = [], []
-    predict, score = predict_pixel(hist, test_pic)
+    predict, score = predict_pixel(hist, test_pic, fileName)
     for h in hist_list:
-        p,s = predict_pixel(h, test_pic)
+        p,s = predict_pixel(h, test_pic, fileName)
         predict_list.append(p)
         score_list.append(s)
 
@@ -485,9 +578,9 @@ def forest_test(forest, test_pic, fileName):
     # """
     # -*- get predict and score -*-
     predict_list, score_list = [], []
-    predict, score = predict_superpixel(hist, test_pic)
+    predict, score = predict_superpixel(hist, test_pic, fileName)
     for h in hist_list:
-        p,s = predict_superpixel(h, test_pic)
+        p,s = predict_superpixel(h, test_pic, fileName)
         predict_list.append(p)
         score_list.append(s)
 
@@ -502,9 +595,10 @@ def forest_test(forest, test_pic, fileName):
     # """
 
         
-def predict_pixel(hist, picture):
+def predict_pixel(hist, picture, fileName):
     # ---------- pixel wise ----------
     count = 0
+    one_count = 0
     predict = {}
     for i,p in enumerate(picture):
         width, height = p.getSize()
@@ -514,7 +608,10 @@ def predict_pixel(hist, picture):
                 # predict & count
                 predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
                 if predict[i,j,k] == label:
-                    count += 1
+                    one_count += 1
+        print_time('%dth picture: %d (%d)' % (i, one_count, width * height), fileName)
+        count += one_count
+        one_count = 0
     length = len(predict)
     return predict, (1. * count / length)
 
@@ -530,7 +627,7 @@ def draw_pixel(predict, picture, file_name):
         name = file_name + str(i) + ".png"
         image.save(name)
     
-def predict_superpixel(hist, picture):
+def predict_superpixel(hist, picture, fileName):
     # ---------- super-pixel wise ----------
     # compress hist
     length = 0
@@ -554,6 +651,7 @@ def predict_superpixel(hist, picture):
 
     # count
     count = 0
+    one_count = 0
     for i,p in enumerate(picture):
         width, height = p.getSize()
         for j in xrange(width):
@@ -561,7 +659,10 @@ def predict_superpixel(hist, picture):
                 label = p.getSignal(j,k)
                 index = p.getSIndex(j,k)
                 if predict[i,index] == label:
-                    count += 1
+                    one_count += 1
+        print_time('%dth picture: %d (%d)' % (i, one_count, width * height), fileName)
+        count += one_count
+        one_count = 0
     return predict, (1. * count / length)    
                     
 def draw_superpixel(predict, picture, file_name):
@@ -578,13 +679,11 @@ def draw_superpixel(predict, picture, file_name):
         image.save(name)
 
 def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
-              isELMF,
-              dataPerTree, depthLimit, numThreshold, numTree,
+              isELMF, isELMAEF, isSTF,
+              dataPerTree, depthLimit, numThreshold, numTree, sampleSize,
               numHidden,
               n_superpixels, compactness,
               fileName):
-    # complement (あとでパラメータとして書き加える)
-    sampleSize = boxSize * boxSize * 3
     
     # ----- initialize -----
     print_time('eTRIMS: init', fileName)
@@ -613,6 +712,38 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             print_time('tree: %i' % i, fileName)
             tree = ELMTree(radius=radius, sampleSize=sampleSize, numThreshold=numThreshold,
                            numELM = numHidden, weight=weight, fileName=fileName)        
+            tree.train(train_pic=train_pic, freq=sampleFreq, limit=depthLimit)
+            forest.append(tree)
+
+        print_time('test', fileName)
+        forest_test(forest, test_pic, fileName)
+
+    if isELMAEF:
+        print_time('ELM-AE forest', fileName)
+        print_time('init', fileName)
+        forest = []
+        print_time('train', fileName)
+        for i in xrange(numTree):
+            print_time('tree: %i' % i, fileName)
+            tree = ELMAETree(radius=radius, sampleSize=sampleSize,
+                             numThreshold=numThreshold,
+                             numELM = numHidden, weight=weight, fileName=fileName)        
+            tree.train(train_pic=train_pic, freq=sampleFreq, limit=depthLimit)
+            forest.append(tree)
+
+        print_time('test', fileName)
+        forest_test(forest, test_pic, fileName)
+
+    if isSTF:
+        print_time('Semantic Texton forest', fileName)
+        print_time('init', fileName)
+        forest = []
+        print_time('train', fileName)
+        for i in xrange(numTree):
+            print_time('tree: %i' % i, fileName)
+            tree = STTree(radius=radius,
+                          numThreshold=numThreshold,
+                          weight=weight, fileName=fileName)        
             tree.train(train_pic=train_pic, freq=sampleFreq, limit=depthLimit)
             forest.append(tree)
 
