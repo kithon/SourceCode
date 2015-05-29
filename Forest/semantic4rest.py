@@ -536,8 +536,11 @@ def compute_weight(data_pic):
 ##  handle forest
 ##########################################################
 
-def forest_test(forest, test_pic, fileName):
-
+def forest_test(forest, test_pic, fileName, dirName = ""):
+    # ---------- make directory ----------
+    if not os.path.isdir(dirName) and not dirName == "":
+        os.mkdir(dirName)
+    
     # ---------- get class distribution (pixel-wise) ----------
     hist = {}
     hist_list = []
@@ -569,9 +572,9 @@ def forest_test(forest, test_pic, fileName):
         print_time('tree%d_pixel: %f' % (i, s), fileName)
         
     print_time('draw_pixel', fileName)    
-    draw_pixel(predict, test_pic, "forest_pixel")
+    draw_pixel(predict, test_pic, dirName + "forest_pixel")
     for i,p in enumerate(predict_list):
-        draw_pixel(p, test_pic, 'tree%d_pixel' % i)
+        draw_pixel(p, test_pic, dirName + 'tree%d_pixel' % i)
     # """
 
     # ---------- super-pixel wise ----------
@@ -589,9 +592,9 @@ def forest_test(forest, test_pic, fileName):
         print_time('tree%d_super: %f' % (i, s), fileName)
         
     print_time('draw_super', fileName)    
-    draw_superpixel(predict, test_pic, "forest_super")
+    draw_superpixel(predict, test_pic, dirName + "forest_super")
     for i,p in enumerate(predict_list):
-        draw_superpixel(p, test_pic, 'tree%d_super' % i)
+        draw_superpixel(p, test_pic, dirName + 'tree%d_super' % i)
     # """
 
         
@@ -716,7 +719,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName)
+        forest_test(forest, test_pic, fileName, 'elm/')
 
     if isELMAEF:
         print_time('ELM-AE forest', fileName)
@@ -732,7 +735,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName)
+        forest_test(forest, test_pic, fileName, 'elmae/')
 
     if isSTF:
         print_time('Semantic Texton forest', fileName)
@@ -748,7 +751,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName)
+        forest_test(forest, test_pic, fileName, 'stf/')
 
 
     # ----- finish -----

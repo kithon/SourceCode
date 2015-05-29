@@ -15,7 +15,7 @@ isSTF = True
 
 # config forest
 dataPerTree = 0.5
-depthLimit = 5
+depthLimit = 10
 numThreshold = 4 # 400
 numTree = 5
 sampleSize = boxSize * boxSize * 3
