@@ -51,7 +51,7 @@ class ELMTree(object):
         while s_index < e_index and currentDepth < limit:
             print_time("depth:%d" % (currentDepth), self.fileName)
             currentDepth += 1
-            print_time("num of node:%d" % (s_index - e_index), self.fileName)
+            print_time("num of node:%d" % (e_index - s_index), self.fileName)
             for index in xrange(s_index, e_index):
                 forceTerminal = not currentDepth < limit
                 data = [list(x) for x in sample.iterkeys() if sample[x] == index]
