@@ -1,0 +1,920 @@
+# -*- coding: utf-8 -*-
+import os
+import random
+import datetime
+import numpy as np
+import collections
+import argparse
+import multiprocessing
+import linecache
+from ast import literal_eval
+from PIL import Image
+from extreme import StackedELMAutoEncoder, BinaryELMClassifier
+
+def sigmoid(x):
+    return 1. / (1 + np.exp(-x))
+
+##########################################################
+##  Decision Tree (for etrims)
+##########################################################
+
+class DecisionTree(object):
+    __slots__ = ['radius', 'num_function', 'condition',
+                 'np_rng', 'd_limit', 'dir_name', 'file_name',
+                 'picture', 'sig_picture', 'node_length', 'parameter_list']
+    def __init__(self, radius=None, num_function=10, condition='gini', seed=123, file_name=None):
+        if radius is None:
+            Exception('Error: radius is None.')
+        self.radius = radius
+        self.num_function = num_function
+        self.condition = condition
+        self.np_rng = np.random.RandomState(seed)
+        self.dir_name = 'decision/'
+        self.file_name = file_name
+
+    def getNode(self, data=None, signal=None, depth=None):
+        return Node(data, self.picture, signal, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.condition)
+            
+    def fit(self, picture, sig_picture, d_limit=None, overlap=True):
+        # ----- initialize -----
+        # -*- input, picture, param, d_limit -*-
+        self.picture = picture
+        self.sig_picture = sig_picture
+        self.d_limit = d_limit
+        input = {}
+        for i,p in enumerate(picture):
+            w,h = p.getSize()
+            if overlap:
+                for j in xrange(w):
+                    for k in xrange(h):
+                        input[i,j,k] = 0
+            else:
+                for j in xrange(self.radius, w, 2*self.radius+1):
+                    for k in xrange(self.radius, h, 2*self.radius+1):
+                        input[i,j,k] = 0
+
+        count = 0
+        fix_count = 0
+        signal = {}
+        for i,p in enumerate(sig_picture):
+            w,h = p.getSize()
+            for j in xrange(w):
+                for k in xrange(h):
+                    signal[i,j,k] = 0
+        length = len(signal)
+
+        # -*- execution_list, wait_list, node_length -*-
+        node_length = 1
+        core = multiprocessing.cpu_count()
+
+        # -*- current_depth, index -*-
+        current_depth = 0
+        s_index = 0
+        e_index = 1
+        while s_index < e_index:
+            count = 0
+
+            # -*- initialize jobs, dic -*-
+            jobs = []
+            dic = multiprocessing.Manager().dict()
+            num_process = min(core, e_index - s_index)
+
+            # -*- distribute exec_list -*-
+            for i in xrange(num_process):
+                index_list = range(i + s_index, e_index, num_process)
+                input_list = [[list(x) for x in input.iterkeys() if input[x] == index] for index in index_list]
+                node_list = [self.getNode(data=temp, depth=current_depth) for temp in input_list]
+
+            # -*- multiprocessing -*-
+            for j in jobs:
+                j.start()
+            for j in jobs:
+                j.join()
+                            
+            for index in xrange(s_index, e_index):
+                input_list = [list(x) for x in input.iterkeys() if input[x] == index]
+                signal_list = [list(x) for x in signal.iterkeys() if signal[x] == index]
+                node = self.getNode(input_list, signal_list, current_depth)
+                parameter = dic.get(index)
+                node.load(parameter)
+                point = node.getScore()
+                if not node.isTerminal():
+                    count += point
+                    node.setChildIndex(node_length)
+                    l_data, l_label, r_data, r_label = node.divide()
+                    l_sign, l_pred,  r_sign, r_pred  = node.divide(data=signal_list, picture=self.sig_picture)
+                    l_index, r_index = node.getChildIndex()
+                    for l in l_data:
+                        input[tuple(l)] = l_index
+                    for r in r_data:
+                        input[tuple(r)] = r_index
+                    for l in l_sign:
+                        signal[tuple(l)] = l_index
+                    for r in r_sign:
+                        signal[tuple(r)] = r_index
+                    node_length += 2
+                else:
+                    fix_count += point            
+
+            count += fix_count
+            score = count * 1.0 / length
+            print_time("depth:%d score = %f" % (current_depth, score), self.file_name)
+                    
+            # -*- update current_depth, index -*-
+            current_depth += 1
+            s_index = e_index
+            e_index = node_length
+
+        # -*- set node_length -*-
+        self.node_length = node_length
+
+    def generate_threshold(self, data):
+        for i in xrange(self.num_function):
+            # -*- channel (0 <= c < 3) -*-
+            selected_dx = self.np_rng.randint(-1*self.radius, self.radius+1)
+            selected_dy = self.np_rng.randint(-1*self.radius, self.radius+1)
+            selected_c = self.np_rng.randint(3)
+            
+            min_row = 0
+            max_row = 255
+            
+            theta = self.np_rng.rand() * (max_row - min_row) + min_row
+            
+            selected_dim = [selected_dx, selected_dy, selected_c]
+            yield selected_dim, theta
+            
+    def info(self):
+        if not self.node_length is None:
+            print_time("Information: number of node = %d" % (self.node_length), self.file_name)
+        else:
+            print_time("Information: self.node_length is not defined", self.file_name)
+
+        
+##########################################################
+##  Node (for etrims)
+##########################################################
+
+class Node(object):
+    __slots__ = ['data', 'picture', 'signal', 'sig_picture','depth', 'gen_threshold',
+                 'd_limit', 'condition', 'l_index', 'r_index',
+                 'terminal', 'label', 'selected_dim', 'theta']
+    def __init__(self, data=None, picture=None, signal=None, sig_picture=None,
+                 depth=None, gen_threshold=None, d_limit=None, condition=None):
+        if not data is None:
+            self.data = data
+            self.picture = picture
+            self.signal = signal
+            self.sig_picture = sig_picture
+            self.depth = depth
+            self.gen_threshold = gen_threshold
+            self.d_limit = d_limit
+            self.condition = condition
+            self.l_index = 0
+            self.r_index = 0
+
+    def fit(self):
+        #print "label", label
+        label = []
+        for temp in self.data:
+            #print temp
+            i, x, y = temp
+            label.append(self.picture[i].getSignal(x,y))
+
+        self.label = collections.Counter(label).most_common()[0][0]
+        if len(set(label)) == 1:
+            self.terminal = True
+        elif not self.d_limit is None and self.d_limit <= self.depth:
+            self.terminal = True
+        else:
+            self.terminal = False
+            l_data, r_data = [], []
+            count = 0
+            limit = 50
+            while len(l_data) == 0 or len(r_data) == 0:
+                thresholds = [t for t in self.gen_threshold(self.data)]
+                self.opt_threshold(self.data, thresholds)
+                l_data, l_label, r_data, r_label = self.divide()
+                count += 1
+                if limit < count:
+                    self.terminal = True
+                    return                    
+                
+    def opt_threshold(self, data, thresholds):
+        cost = self.gini if self.condition == 'gini' else self.entropy
+        index = None
+        minimum = None
+        for i,threshold in enumerate(thresholds):
+            # threshold consits of (selected_dim, theta)
+            l_data, l_label, r_data, r_label = self.divide(data, threshold)
+            temp = cost(l_label, r_label)
+            if minimum is None or temp < minimum:
+                index = i
+                minimum = temp
+        self.selected_dim, self.theta = thresholds[index]
+
+    def divide(self, data=None, threshold=None, picture=None):
+        # set data
+        if data is None:
+            data = self.data
+        if picture is None:
+            picture = self.picture
+
+        # divide data and label
+        lr_data = [[], []]
+        lr_label = [[], []]
+        for i, element in enumerate(data):
+            #print element
+            index = (self.function(element, threshold) > 0)
+            lr_data[index].append(element)
+            lr_label[index].append(picture[element[0]].getSignal(element[1], element[2]))
+            #print lr_label, index, label, i
+
+        l_data, r_data = lr_data
+        l_label, r_label = lr_label
+        #print self.depth, len(l_data), len(r_data)
+        return l_data, l_label, r_data, r_label
+
+    def function(self, element, threshold=None):
+        # set threshold
+        if threshold is None:
+            selected_dim = self.selected_dim
+            theta = self.theta
+        else:
+            selected_dim, theta = threshold
+
+        i,  x,  y = element
+        dx, dy, c = selected_dim
+        #print element
+        return self.picture[i].getData(x+dx, y+dy)[c] - theta
+
+    def gini(self, l_label, r_label):
+        # get gini (minimize)
+        set_size = len(l_label) + len(r_label)
+        g = 0
+        for label in [l_label, r_label]:
+            sub_size = len(label)
+            counter = collections.Counter(label).most_common()
+            for c in counter:
+                p = 1. * c[1] / sub_size
+                sub = (1. * sub_size / set_size)
+                #print "sub", sub * p * (1. - p) 
+                g += sub * p * (1. - p)
+        return g
+
+    def entropy(self, l_label, r_label):
+        # get entropy (minimize)
+        set_size = len(l_label) + len(r_label)
+        e = 0
+        for label in [l_label, r_label]:
+            sub_size = len(label)
+            counter = collections.Counter(label).most_common()
+            for c in counter:
+                p = 1. * c[1] / sub_size
+                sub = (1. * sub_size / set_size)
+                e += sub * p * np.log2(p)
+        return -1. * e
+
+    
+    def predict(self, element):
+        # check terminal
+        if self.terminal:
+            return self.label
+
+        # check threshold
+        if self.function(element) > 0:
+            return self.r_index
+        else:
+            return self.l_index
+
+    def getScore(self):
+        score = 0
+        for i, element in enumerate(self.signal):
+            i,x,y = element
+            if self.sig_picture[i].getSignal(x,y) == self.label:
+                score += 1
+        return score
+        
+    def isTerminal(self):
+        return self.terminal
+    
+    def getDepth(self):
+        return self.depth
+    
+    def setPicture(self, picture):
+        self.picture = picture
+
+    def setChildIndex(self, index):
+        # set child index
+        self.l_index = index
+        self.r_index = index+1
+
+    def getChildIndex(self):
+        # get child index
+        return self.l_index, self.r_index
+
+    def save(self):
+        # return parameter
+        detail = [] if self.isTerminal() else [self.l_index, self.r_index, self.selected_dim, self.theta]
+        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
+        return parameter
+
+    def load(self, parameter):
+        # set parameter
+        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
+        if not self.isTerminal():
+            self.l_index, self.r_index, self.selected_dim, self.theta = detail
+        
+
+##########################################################
+##  ExtremeDecision Tree (for etrims)
+##########################################################
+
+class ExtremeDecisionTree(DecisionTree):
+    __slots__ = ['radius', 'num_function', 'condition',
+                 'np_rng', 'd_limit', 'dir_name', 'file_name',
+                 'picture', 'sig_picture', 'node_length', 'parameter_list',
+                 'elm_hidden', 'elm_coef', 'visualize']
+    def __init__(self, elm_hidden=None, elm_coef=None,
+                 radius=1, num_function=10, condition='gini', seed=123, visualize=False, file_name=None):
+        DecisionTree.__init__(self, radius, num_function, condition, seed, file_name)
+        if elm_hidden is None:
+            elm_hidden = [3 * (2*radius+1) * (2*radius+1) * 2]
+        self.elm_hidden = elm_hidden
+        self.elm_coef = elm_coef
+        self.visualize = visualize
+        self.dir_name = 'extreme/'
+        
+
+    def getNode(self, data=None, signal=None, depth=None):
+        return ExtremeNode(data, self.picture, signal, self.sig_picture, depth, self.generate_threshold, self.d_limit, self.radius, self.condition)
+    
+    def generate_threshold(self, data):
+        #print "Generate ", size, " divide functions"
+        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=self.visualize)
+        sample = []
+        num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
+        sample_index = random.sample(data, num)
+        for temp in sample_index:
+            i,x,y = temp
+            sample.append(self.picture[i].cropData(x, y, self.radius))
+        betas, biases = selmae.fit(sample)
+
+        numpy_data = np.array(selmae.extraction(sample))
+        for i in xrange(self.num_function):            
+            selected_dim = self.np_rng.randint(self.elm_hidden[-1])
+            selected_row = numpy_data.T[selected_dim]
+            min_row = selected_row.min()
+            max_row = selected_row.max()
+            theta = self.np_rng.rand() * (max_row - min_row) + min_row
+            yield selected_dim, theta, betas, biases
+
+
+##########################################################
+##  Extreme Node (for etrims)
+##########################################################
+
+class ExtremeNode(Node):
+    __slots__ = ['data', 'picture', 'signal', 'sig_picture', 'depth', 'gen_threshold',
+                 'd_limit', 'radius', 'condition', 'l_index', 'r_index',
+                 'terminal', 'label', 'selected_dim', 'theta',
+                 'betas', 'biases']
+    def __init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, radius, condition):
+        Node.__init__(self, data, picture, signal, sig_picture, depth, gen_threshold, d_limit, condition)
+        self.radius = radius
+
+    def opt_threshold(self, data, thresholds):
+        cost = self.gini if self.condition == 'gini' else self.entropy
+        index = None
+        minimum = None
+        for i,threshold in enumerate(thresholds):
+            # threshold consits of (selected_dim, theta, betas, biases)
+            #print "size of threshold:", len(threshold)
+            l_data, l_label, r_data, r_label = self.divide(data, threshold)
+            temp = cost(l_label, r_label)
+            if minimum is None or temp < minimum:
+                index = i
+                minimum = temp
+        self.selected_dim, self.theta, self.betas, self.biases = thresholds[index]
+        
+    def function(self, element, threshold=None):
+        # set threshold
+        if threshold is None:
+            selected_dim = self.selected_dim
+            theta = self.theta
+            betas = self.betas
+            biases = self.biases
+        else:
+            selected_dim, theta, betas, biases = threshold
+            
+        i,  x,  y = element
+        crop = self.picture[i].cropData(x, y, self.radius)
+        for i, beta in enumerate(betas):
+            bias = biases[i]
+            crop = sigmoid(np.dot(crop, beta.T) + bias)
+        return crop[selected_dim] - theta
+    
+
+    def save(self):
+        # return parameter
+        detail = [] if self.isTerminal() else [self.l_index, self.r_index,
+                                               self.selected_dim, self.theta,
+                                               map(lambda n:n.tolist(), self.betas),
+                                               map(lambda n:n.tolist(), self.biases)]
+        parameter = [self.depth, self.d_limit, self.terminal, self.label, detail]
+        return parameter
+
+    def load(self, parameter):
+        # set parameter
+        self.depth, self.d_limit, self.terminal, self.label, detail = parameter
+        if not self.isTerminal():
+            l, r, s, t, be, bi = detail
+            self.l_index = l
+            self.r_index = r
+            self.selected_dim = s
+            self.theta = t
+            self.betas = map(np.array, be)
+            self.biases = map(np.array, bi)            
+        
+##########################################################
+##  ELMTree
+##########################################################
+class ELMTree(object):
+    def __init__(self, radius, sampleSize, numThreshold, numELM, fileName):
+        seed = 123
+        if radius is None:
+            Exception('Error: radius is None.')
+        self.radius = radius
+        self.sampleSize = sampleSize
+        self.numThreshold = numThreshold
+        self.np_rng = np.random.RandomState(seed)
+        self.fileName = fileName
+        self.elm_hidden = numELM
+        self.elm_coef = None
+        self.dir_name = 'elm/'
+
+    def train(self, train_pic, freq, limit):
+        # train decision tree
+        print_time('train tree', self.fileName)
+        sample = {}
+        self.train_pic = train_pic
+        for i in xrange(len(train_pic)):
+            w,h = train_pic[i].getSize()
+            for j in xrange(0, w, freq):
+                for k in xrange(0, h, freq):
+                    # bootstrap
+                    sample[i,j,k] = 0
+                    
+        s_index = 0
+        e_index = 1
+        node_list = []
+        node_length = 1
+        currentDepth = 0
+        while s_index < e_index:
+            for index in xrange(s_index, e_index):
+                forceTerminal = not currentDepth < limit
+                data = [list(x) for x in sample.iterkeys() if sample[x] == index]
+                isTerminal, param = self.getOptParam(data, train_pic, forceTerminal)
+                if isTerminal:
+                    node_list.append([isTerminal, param, []])
+                if not isTerminal:
+                    # inner node
+                    l_index, r_index = node_length, node_length + 1
+                    l_data, l_label, r_data, r_label = self.divide(data, param, train_pic)
+                    for l in l_data:
+                        sample[tuple(l)] = l_index
+                    for r in r_data:
+                        sample[tuple(r)] = r_index
+                    node_length += 2
+                    node_list.append([isTerminal, param, [l_index, r_index]])
+                    
+            # update
+            currentDepth += 1
+            s_index = e_index
+            e_index = node_length
+            print_time("depth:%d" % (currentDepth), self.fileName)
+            
+        # initialize input
+        print_time('get class distribution', self.fileName)
+        input = {}
+        for i in xrange(len(train_pic)):
+            w,h = train_pic[i].getSize()
+            for j in xrange(0, w):
+                for k in xrange(0, h):
+                    input[i,j,k] = 0
+
+        # get class distribution
+        for index, node in enumerate(node_list):
+            data = [list(x) for x in input.iterkeys() if input[x] == index]
+            isTerminal, param, child = node
+            if isTerminal:
+                # terminal node
+                label = self.getLabelList(data, train_pic)
+                node_list[index] = [isTerminal, label, []]
+            else:
+                # inner node
+                l_index, r_index = child
+                l_data, l_label, r_data, r_label = self.divide(data, param, train_pic)
+                for l in l_data:
+                    input[tuple(l)] = l_index
+                for r in r_data:
+                    input[tuple(r)] = r_index
+
+        # set grown node_list 
+        self.node_list = node_list                    
+
+    def test(self, input, test_pic):
+        # get class distribution
+        index = 0
+        while True:
+            node = self.node_list[index]
+            isTerminal, param, child = node
+            if isTerminal:
+                # terminal node
+                return param
+            else:
+                # inner node
+                val = self.function(input, param, test_pic)
+                isLR = child
+                index = isLR[val > 0]
+                    
+    def divide(self, data, param, data_pic):
+        lr_data = [[], []]
+        lr_label = [[], []]
+        for i,element in enumerate(data):
+            index = (self.function(element, param, data_pic) > 0)
+            lr_data[index].append(element)
+            lr_label[index].append(data_pic[element[0]].getSignal(element[1], element[2]))
+
+        l_data, r_data = lr_data
+        l_label, r_label = lr_label
+        return l_data, l_label, r_data, r_label
+
+    def function(self, element, param, picture):
+        weight, bias, beta = param
+        i,x,y = element
+        crop = picture[i].cropData(x, y, self.radius)
+        hidden = sigmoid(np.dot(weight, crop) + bias)
+        output = np.dot(hidden, beta) # sigmoid(np.dot(hidden, beta))
+        return output - 0.5 # constant theta
+
+    def gini(self, l_label, r_label):
+        # get gini (minimize)
+        g = 0
+        set_size = len(l_label) + len(r_label)
+        for label in [l_label, r_label]:
+            sub_size = len(label)
+            counter = collections.Counter(label).most_common()
+            for c in counter:
+                p = 1. * c[1] / sub_size
+                sub = (1. * sub_size / set_size)
+                #print "sub", sub * p * (1. - p) 
+                g += sub * p * (1. - p)
+        return g
+
+    def getLabelList(self, data, data_pic):
+        label_list = []
+        for element in data:
+            i,x,y = element
+            label_list.append(data_pic[i].getSignal(x,y))
+        return label_list
+    
+    def getOptParam(self, data, data_pic, forceTerminal):
+        # check terminal 
+        label = self.getLabelList(data, data_pic)        
+        if len(set(label)) == 1 or forceTerminal:
+            # terminal
+            return True, None
+
+        # find optimized parameter
+        obj = None
+        optParam = None
+        for i in xrange(self.numThreshold):
+            param = self.generate_threshold(data)
+            l_data, l_label, r_data, r_label = self.divide(data, param, data_pic)
+            g = self.gini(l_label, r_label)
+            if len(l_data) == 0 or len(r_data) == 0:
+                continue
+            if obj is None or g < obj:
+                optParam = param
+                obj = g
+        if optParam is None:
+            # terminal
+            return True, None
+        # inner
+        return False, optParam                
+        
+    def generate_threshold(self, data):
+        # crop data
+        sample_input, label = [], []
+        num = min(len(data), self.sampleSize)
+        sample_index = random.sample(data, num)
+        for temp in sample_index:
+            i,x,y = temp
+            sample_input.append(self.train_pic[i].cropData(x, y, self.radius))
+            label.append(self.train_pic[i].getSignal(x,y))
+
+        # label
+        label_index = []
+        numL, numR = 0, 0
+        for l in collections.Counter(label).most_common():
+            if numL < numR:
+                numL += l[1]
+                label_index.append(l[0])
+            else:
+                numR += l[1]
+
+        sample_signal = [1 if l in label_index else 0 for l in label]
+            
+        # train elm
+        elm = ELMClassifier()
+        elm.fit(sample_input, sample_signal)
+        weight, bias, beta = elm.get()
+        return weight, bias, beta
+            
+    def info(self):
+        if not self.node_length is None:
+            print_time("Information: number of node = %d" % (self.node_length), self.file_name)
+        else:
+            print_time("Information: self.node_length is not defined", self.file_name)
+
+    
+
+        
+##########################################################
+##  Pic
+##########################################################
+
+class Pic(object):
+    __slots__ = ['data', 'signal', 'w', 'h']
+    def __init__(self, data, signal):
+        self.w, self.h = data.size
+        self.setData(data)
+        self.setSignal(signal)
+
+    def setData(self, data):
+        data_list = []
+        for x in xrange(self.w):
+            temp = []
+            for y in xrange(self.h):
+                temp.append(list(data.getpixel((x,y))))
+            data_list.append(temp)
+        self.data = data_list
+        
+    def setSignal(self, signal):
+        signal_list = []
+        for x in xrange(self.w):
+            temp = []
+            for y in xrange(self.h):
+                temp.append(signal.getpixel((x,y)))
+            signal_list.append(temp)
+        self.signal = signal_list
+    """
+    def setData(self, data):
+        data_list = {}
+        for x in xrange(self.w):
+            for y in xrange(self.h):
+                data_list[x,y] = list(data.getpixel((x,y)))
+        self.data = data_list
+        
+    def setSignal(self, signal):
+        signal_list = {}
+        for x in xrange(self.w):
+            for y in xrange(self.h):
+                signal_list[x,y] = signal.getpixel((x,y))
+        self.signal = signal_list
+    """
+    def getSize(self):
+        return self.w, self.h
+
+    def getData(self, x, y):
+        if x < 0 or x >= self.w:
+            # out of x_range
+            return [0,0,0]
+        if y < 0 or y >= self.h:
+            # out of y_range
+            return [0,0,0]
+        # in range
+        return self.data[x][y]
+
+    def getSignal(self, x, y):
+        # in range
+        return self.signal[x][y]
+
+    def cropData(self, x, y, radius):
+        crop = []
+        for dx in range(x-radius, x+radius+1):
+            for dy in range(y-radius, y+radius+1):
+                crop += self.getData(dx, dy)
+        crop = (1. * np.array(crop) / 255).tolist()
+        return crop
+        """
+        conditions = [x-radius < 0, x+radius >= self.w, y-radius < 0, y+radius >= self.h]
+        if any(conditions):
+            crop = []
+            for dx in range(x-radius, x+radius+1):
+                for dy in range(y-radius, y+radius+1):
+                    crop += self.getData(dx, dy)
+            crop = (1. * np.array(crop) / 255).tolist()
+            print_time(len(crop), "ddd2.log")
+            return crop
+        else:
+            crop = map(lambda a:a[y-radius:y+radius+1], self.data[x-radius:x+radius+1])
+            crop = [c for c2 in crop for c1 in c2 for c in c1]
+            crop = (1. * np.array(crop) / 255).tolist()
+            print_time(len(crop), "ddd.log")
+            return crop
+        """
+        
+    """
+    def getData(self, x, y):
+        if x < 0 or x >= self.w:
+            # out of x_range
+            return [0,0,0]
+        if y < 0 or y >= self.h:
+            # out of y_range
+            return [0,0,0]
+        # in range
+        return self.data[x,y]
+
+    def getSignal(self, x, y):
+        # in range
+        return self.signal[x,y]
+
+    def cropData(self, x, y, radius):
+        crop = []
+        for dx in range(x-radius, x+radius+1):
+            for dy in range(y-radius, y+radius+1):
+                crop += self.getData(dx, dy)
+        crop = (1. * np.array(crop) / 255).tolist()
+        return crop
+    """
+    
+##########################################################
+##  print
+##########################################################
+def print_parameter(param, FILE_NAME):
+    cmd = 'echo %s >> %s' % (param, FILE_NAME)
+    os.system(cmd)
+    
+def print_time(message, FILE_NAME):
+    d = datetime.datetime.today()
+    string = '%s/%s/%s %s:%s:%s.%s %s' % (d.year, d.month, d.day, d.hour, d.minute,
+                                          d.second, d.microsecond, message)
+    cmd = 'echo %s >> %s' % (string, FILE_NAME)
+    os.system(cmd)
+
+        
+##########################################################
+##  load_etrims
+##########################################################
+    
+def load_etrims(radius, size, shuffle, name):
+    # ----- path initialize -----
+    root_path = '../Dataset/etrims-db_v1/'
+    an_name = 'annotations/'
+    im_name = 'images/'
+    et_name = '08_etrims-ds/'
+    an_path = root_path + an_name + et_name
+    im_path = root_path + im_name + et_name
+    dir_list = os.listdir(an_path)
+        
+    # ----- train index -----
+    train_index = []
+    DATA_SIZE = size # max=60 
+    TRAIN_SIZE = 2 * size / 3 # max=40
+    train_index = random.sample(range(DATA_SIZE), TRAIN_SIZE) if shuffle else range(TRAIN_SIZE)
+
+    # ----- test set and train set -----
+    train_set = []
+    test_set = []
+    test_or_train = [test_set, train_set]
+    for i in xrange(DATA_SIZE):
+        # open annotation.png and image.jpg
+        dis = dir_list[i]
+        file_name = dis.split(".")[0]
+        annot_path = an_path + file_name + ".png"
+        annotation = Image.open(annot_path)
+        image_path = im_path + file_name + ".jpg"
+        image = Image.open(image_path)
+        
+        # get index and set picture
+        index = i in train_index
+        picture = Pic(image, annotation)
+        test_or_train[index].append(picture)
+
+        # print filename
+        print_time("eTRIMS: %s" % file_name, name)
+
+    # ----- finish -----
+    print_parameter(train_index, name)
+    print_time("eTRIMS: train=%d test=%d" % (len(train_set), len(test_set)), name)
+    return train_set, test_set
+
+def forest_test(forest, test_pic, weight):
+    forest_pixel(forest, test_pic, weight)
+
+def forest_superpixel(forest, test_pic, weight):
+    return
+    
+def forest_pixel(forest, test_pic, weight):
+    count = 0
+    label = []
+    predict = {}
+    for i,p in enumerate(test_pic):
+        w,h = p.getSize()
+        for j in xrange(w):
+            for k in xrange(h):
+                for tree in forest:
+                    input = [i,j,k]
+                    label += tree.test(input, test_pic)
+
+                hist = collections.Counter(label)
+                for h in hist.most_common():
+                    hist[h[0]] *= weight[h[0]]
+                predict[i,j,k] = hist.most_common()[0][0]
+                if predict[i,j,k] == test_pic[i].getSignal(j,k):
+                    count += 1
+    return 1. * count / len(predict)
+
+def draw_test(self, predict, file_name):
+    for i,p in enumerate(self.test_picture):
+        w,h = p.getSize()
+        image = Image.new('P', (w,h))
+        image.putpalette(p.getPalette())
+        for x in xrange(w):
+            for y in xrange(h):
+                index = p.getSIndex(x,y)
+                image.putpixel((x,y), predict[(i, index)])
+        name = file_name + str(i) + ".png"
+        image.save(name)
+    
+def compute_weight(data_pic):
+    # compute label weight from train picture
+    label = []
+    for i,p in enumerate(data_pic):
+        w,h = p.getSize()
+        for x in xrange(w):
+            for y in xrange(h):
+                label.append(data_pic[i].getSignal(x,y))
+    label_weight = {}
+    for l in collections.Counter(label).most_common():
+        label_weight[l[0]] = 1. / l[1]
+    return label_weight
+
+def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
+              isSTF, isELF, isRELF,
+              dataPerTree, depthLimit, numThreshold, numTree,
+              numELM,
+              fileName):
+    # complement (あとでパラメータとして書き加える)
+    sampleSize = boxSize * boxSize * 3
+    
+    # ----- initialize -----
+    print_time('eTRIMS: init', fileName)
+
+    radius = (boxSize - 1) / 2
+    train_set, test_set = load_etrims(radius=radius, size=dataSize, shuffle=not unShuffle, name=fileName)
+
+    print_parameter([boxSize, dataSize, unShuffle, sampleFreq], fileName)
+    print_parameter([isSTF, isELF, isRELF], fileName)
+    print_parameter([dataPerTree, depthLimit, numThreshold, numTree], fileName)
+    print_parameter([numELM], fileName)
+    print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d'
+               % (radius, str(depthLimit), dataSize, numThreshold), fileName)
+    
+    if isSTF:
+        print_time('Semantic texton forest', fileName)
+        print_time('init', fileName)
+        forest = []
+        print_time('train', fileName)
+        for i in xrange(numTree):
+            print_time('tree: %i' % i, fileName)
+            tree = ELMTree(radius=radius, sampleSize=sampleSize, numThreshold=numThreshold,
+                           numELM = numELM, fileName=fileName)        
+            tree.train(train=train_set, freq=sampleFreq, limit=depthLimit)
+            forest.append(tree)
+
+        print_time('test', fileName)
+        forest_test(forest, test_set)
+
+    if isELF:
+        print_time('ExtremeDecisionTree', fileName)
+        print_time('init', fileName)
+        
+        print_time('train', fileName)
+
+        print_time('info', fileName)
+
+    if isRELF:
+        print_time('ExtremeDecisionTree', fileName)
+        print_time('init', fileName)
+        
+        print_time('train', fileName)
+
+        print_time('info', fileName)
+
+
+    # ----- finish -----
+    print_time('eTRIMS: finish', fileName)
+
+    
