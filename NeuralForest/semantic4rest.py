@@ -131,7 +131,6 @@ class ELMTree(object):
             dir = self.node_name + str(index)
             data = [list(x) for x in input.iterkeys() if input[x] == index]
             isTerminal = h5file[dir + '/isTerminal'].value
-            param = h5file[dir + '/param'].value
             if isTerminal:
                 # terminal node
                 hist = h5file[dir + '/hist'].value
