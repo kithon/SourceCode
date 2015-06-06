@@ -567,9 +567,11 @@ def forest_test(forest, test_pic, fileName, dirName = ""):
         predict_list.append(p)
         score_list.append(s)
 
-    print_time('forest_pixel: %f' % (score), fileName)    
+    Global, Accuracy, Class_Avg, Jaccard = score
+    print_time('forest_pixel: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (Global, Accuracy, Class_Avg, Jaccard), fileName)
     for i,s in enumerate(score_list):
-        print_time('tree%d_pixel: %f' % (i, s), fileName)
+        Global, Accuracy, Class_Avg, Jaccard = s
+        print_time('tree%d_pixel: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (i, Global, Accuracy, Class_Avg, Jaccard), fileName)
         
     print_time('draw_pixel', fileName)    
     draw_pixel(predict, test_pic, dirName + "forest_pixel")
@@ -587,9 +589,11 @@ def forest_test(forest, test_pic, fileName, dirName = ""):
         predict_list.append(p)
         score_list.append(s)
 
-    print_time('forest_super: %f' % (score), fileName)    
+    Global, Accuracy, Class_Avg, Jaccard = score
+    print_time('forest_super: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (Global, Accuracy, Class_Avg, Jaccard), fileName)
     for i,s in enumerate(score_list):
-        print_time('tree%d_super: %f' % (i, s), fileName)
+        Global, Accuracy, Class_Avg, Jaccard = s
+        print_time('tree%d_super: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (i, Global, Accuracy, Class_Avg, Jaccard), fileName)
         
     print_time('draw_super', fileName)    
     draw_superpixel(predict, test_pic, dirName + "forest_super")
@@ -600,8 +604,8 @@ def forest_test(forest, test_pic, fileName, dirName = ""):
         
 def predict_pixel(hist, picture, fileName):
     # ---------- pixel wise ----------
-    count = 0
-    one_count = 0
+    TP, TN, FP, FN = 0, 0, 0, 0
+    one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
     predict = {}
     for i,p in enumerate(picture):
         width, height = p.getSize()
@@ -611,12 +615,28 @@ def predict_pixel(hist, picture, fileName):
                 # predict & count
                 predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
                 if predict[i,j,k] == label:
-                    one_count += 1
-        print_time('%dth picture: %d (%d)' % (i, one_count, width * height), fileName)
-        count += one_count
-        one_count = 0
+                    one_TP += 1
+                    one_TN += 7
+                else:
+                    one_FP += 7
+                    one_FN += 1
+        Global = 1. * one_TP / (width * height)
+        Accuracy = 1. * (one_TP + one_TN) / (one_TP + one_TN + one_FP + one_FN)
+        Class_Avg = 1. * one_TP / (one_TP + one_FN)
+        Jaccard = 1. * one_TP / (one_TP + one_FP + one_FN)
+        print_time('%dth picture: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (i, Global, Accuracy, Class_Avg, Jaccard), fileName)
+        TP += one_TP
+        TN += one_TN
+        FP += one_FP
+        FN += one_FN
+        one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
+
     length = len(predict)
-    return predict, (1. * count / length)
+    Global = 1. * TP / length
+    Accuracy = 1. * (TP + TN) / (TP + TN + FP + FN)
+    Class_Avg = 1. * TP / (TP + FN)
+    Jaccard = 1. * TP / (TP + FP + FN)
+    return predict, [Global, Accuracy, Class_Avg, Jaccard]
 
 def draw_pixel(predict, picture, file_name):
     # ---------- pixel wise ----------
@@ -653,8 +673,8 @@ def predict_superpixel(hist, picture, fileName):
             predict[i,index] = max(super_hist[i,index].iteritems(), key=operator.itemgetter(1))[0]
 
     # count
-    count = 0
-    one_count = 0
+    TP, TN, FP, FN = 0, 0, 0, 0
+    one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
     for i,p in enumerate(picture):
         width, height = p.getSize()
         for j in xrange(width):
@@ -662,11 +682,28 @@ def predict_superpixel(hist, picture, fileName):
                 label = p.getSignal(j,k)
                 index = p.getSIndex(j,k)
                 if predict[i,index] == label:
-                    one_count += 1
-        print_time('%dth picture: %d (%d)' % (i, one_count, width * height), fileName)
-        count += one_count
-        one_count = 0
-    return predict, (1. * count / length)    
+                    one_TP += 1
+                    one_TN += 7
+                else:
+                    one_FP += 7
+                    one_FN += 1                    
+        Global = 1. * one_TP / (width * height)
+        Accuracy = 1. * (one_TP + one_TN) / (one_TP + one_TN + one_FP + one_FN)
+        Class_Avg = 1. * one_TP / (one_TP + one_FN)
+        Jaccard = 1. * one_TP / (one_TP + one_FP + one_FN)
+        print_time('%dth picture: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (i, Global, Accuracy, Class_Avg, Jaccard), fileName)
+        TP += one_TP
+        TN += one_TN
+        FP += one_FP
+        FN += one_FN
+        one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
+
+    length = len(predict)
+    Global = 1. * TP / length
+    Accuracy = 1. * (TP + TN) / (TP + TN + FP + FN)
+    Class_Avg = 1. * TP / (TP + FN)
+    Jaccard = 1. * TP / (TP + FP + FN)
+    return predict, [Global, Accuracy, Class_Avg, Jaccard]
                     
 def draw_superpixel(predict, picture, file_name):
     # ---------- super-pixel wise ----------
