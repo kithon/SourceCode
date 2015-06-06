@@ -107,7 +107,12 @@ class ELMTree(object):
                 h5file.create_dataset(dir + '/hist', data = hist)
             else:
                 # inner node
-                param = h5file[dir + '/param'].value
+                # ---------- param ----------
+                weight = h5file[dir + '/weight'].value
+                bias = h5file[dir + '/bias'].value
+                beta = h5file[dir + '/beta'].value
+                param = weight, bias, beta
+                # ---------- param ----------
                 l_index, r_index = h5file[dir + '/child'].value
                 l_data, l_label, r_data, r_label = self.divide(data, param, train_pic)
                 for l in l_data:
