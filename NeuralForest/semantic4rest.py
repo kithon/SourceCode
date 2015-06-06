@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import h5py
 import random
 import datetime
 import operator
@@ -28,7 +29,7 @@ class ELMTree(object):
         self.elm_hidden = numELM
         self.elm_coef = None
         self.weight = weight
-        self.dir_name = 'elm/'
+        self.tree_name = 'elm_tree.h5'
 
     def train(self, train_pic, freq, limit):
         # train decision tree
@@ -45,19 +46,22 @@ class ELMTree(object):
                     
         s_index = 0
         e_index = 1
-        node_list = []
         node_length = 1
         currentDepth = 0
+        self.node_name = 'node_'
+        h5file = h5py.File(self.tree_name, 'w') # or 'a'
         while s_index < e_index and currentDepth < limit:
             print_time("depth:%d" % (currentDepth), self.fileName)
             currentDepth += 1
-            print_time("num of node:%d" % (s_index, e_index), self.fileName)
+            print_time("num of node:%d" % (s_index - e_index), self.fileName)
             for index in xrange(s_index, e_index):
+                dir = self.node_name + str(index)
+                h5file.create_group(dir)
                 forceTerminal = not currentDepth < limit
                 data = [list(x) for x in sample.iterkeys() if sample[x] == index]
                 isTerminal, param = self.getOptParam(data, train_pic, forceTerminal)
                 if isTerminal:
-                    node_list.append([isTerminal, param, []])
+                    h5file.create_dataset(dir + '/isTerminal', data = isTerminal)
                 if not isTerminal:
                     # inner node
                     l_index, r_index = node_length, node_length + 1
@@ -67,11 +71,15 @@ class ELMTree(object):
                     for r in r_data:
                         sample[tuple(r)] = r_index
                     node_length += 2
-                    node_list.append([isTerminal, param, [l_index, r_index]])
+                    h5file.create_dataset(dir + '/isTerminal', data = isTerminal)
+                    h5file.create_dataset(dir + '/param', data = param)
+                    h5file.create_dataset(dir + '/child', data = [l_index, r_index])
                     
             # update
             s_index = e_index
             e_index = node_length
+        #h5file.flush()
+        #h5file.close()
             
         # initialize input
         print_time('get class distribution', self.fileName)
@@ -83,16 +91,19 @@ class ELMTree(object):
                     input[i,j,k] = 0
 
         # get class distribution
-        for index, node in enumerate(node_list):
+        #h5file = h5py.File(self.tree_name, 'a') 
+        for index in xrange(node_length):
+            dir = self.node_name + str(index)
             data = [list(x) for x in input.iterkeys() if input[x] == index]
-            isTerminal, param, child = node
+            isTerminal = h5file[dir + '/isTerminal'].value
             if isTerminal:
                 # terminal node
                 hist = self.getHist(data, train_pic)
-                node_list[index] = [isTerminal, hist, []]
+                h5file.create_dataset(dir + '/hist', data = hist)
             else:
                 # inner node
-                l_index, r_index = child
+                param = h5file[dir + '/param'].value
+                l_index, r_index = h5file[dir + '/child'].value
                 l_data, l_label, r_data, r_label = self.divide(data, param, train_pic)
                 for l in l_data:
                     input[tuple(l)] = l_index
@@ -100,7 +111,9 @@ class ELMTree(object):
                     input[tuple(r)] = r_index
 
         # set grown node_list 
-        self.node_list = node_list                    
+        self.node_length = node_length
+        h5file.flush()
+        h5file.close()
 
     def test(self, test_pic):
         # initialize input
@@ -113,21 +126,28 @@ class ELMTree(object):
 
         # predict class distribution
         predict = {}
-        for index,node in enumerate(self.node_list): 
+        h5file = h5py.File(self.tree_name, 'r')
+        for index in xrange(self.node_length): 
+            dir = self.node_name + str(index)
             data = [list(x) for x in input.iterkeys() if input[x] == index]
-            isTerminal, param, child = node
+            isTerminal = h5file[dir + '/isTerminal'].value
+            param = h5file[dir + '/param'].value
             if isTerminal:
                 # terminal node
+                hist = h5file[dir + '/hist'].value
                 for d in data:
-                    predict[tuple(d)] = param
+                    predict[tuple(d)] = hist
             else:
                 # inner node
-                l_index, r_index = child
+                param = h5file[dir + '/param'].value
+                l_index, r_index = h5file[dir + '/child'].value
                 l_data, l_label, r_data, r_label = self.divide(data, param, test_pic)
                 for l in l_data:
                     input[tuple(l)] = l_index
                 for r in r_data:
                     input[tuple(r)] = r_index
+        h5file.flush()
+        h5file.close()
         return predict
 
     def test_sub(self, input, test_pic):
@@ -267,15 +287,15 @@ class ELMAETree(ELMTree):
         self.numThreshold = numThreshold
         self.np_rng = np.random.RandomState(seed)
         self.fileName = fileName
-        self.elm_hidden = numELM
+        self.elm_hidden = [numELM]
         self.elm_coef = None
         self.weight = weight
-        self.dir_name = 'elmae/'
+        self.tree_name = 'elmae_tree.h5'
 
     def function(self, element, param, picture):
         i, x, y = element
         selected_dim, theta, betas, biases = param
-        crop = self.picture[i].cropData(x, y, self.radius)
+        crop = picture[i].cropData(x, y, self.radius)
         for i, beta in enumerate(betas):
             bias = biases[i]
             crop = sigmoid(np.dot(crop, beta.T) + bias)
@@ -283,13 +303,13 @@ class ELMAETree(ELMTree):
         
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
-        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=self.visualize)
+        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=False)
         sample = []
         num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
         sample_index = random.sample(data, num)
         for temp in sample_index:
             i,x,y = temp
-            sample.append(self.picture[i].cropData(x, y, self.radius))
+            sample.append(self.train_pic[i].cropData(x, y, self.radius))
         betas, biases = selmae.fit(sample)
 
         numpy_data = np.array(selmae.extraction(sample))
@@ -315,7 +335,8 @@ class STTree(ELMTree):
         self.fileName = fileName
         self.weight = weight
         self.func = ['add', 'sub', 'abs', 'uni']
-        self.dir_name = 'st/'
+        self.tree_name = 'st_tree.h5'
+
 
     def function(self, element, param, picture):
         i, x, y = element
@@ -538,10 +559,6 @@ def compute_weight(data_pic):
 ##########################################################
 
 def forest_test(forest, test_pic, fileName, dirName = ""):
-    # ---------- make directory ----------
-    if not os.path.isdir(dirName) and not dirName == "":
-        os.mkdir(dirName)
-    
     # ---------- get class distribution (pixel-wise) ----------
     hist = {}
     hist_list = []
@@ -757,7 +774,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName, 'elm/')
+        forest_test(forest, test_pic, fileName, 'elm_')
 
     if isELMAEF:
         print_time('ELM-AE forest', fileName)
@@ -773,7 +790,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName, 'elmae/')
+        forest_test(forest, test_pic, fileName, 'elmae_')
 
     if isSTF:
         print_time('Semantic Texton forest', fileName)
@@ -789,7 +806,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName, 'stf/')
+        forest_test(forest, test_pic, fileName, 'stf_')
 
 
     # ----- finish -----
