@@ -51,6 +51,7 @@ class ELMTree(object):
         while s_index < e_index and currentDepth < limit:
             print_time("depth:%d" % (currentDepth), self.fileName)
             currentDepth += 1
+            print_time("num of node:%d" % (s_index, e_index), self.fileName)
             for index in xrange(s_index, e_index):
                 forceTerminal = not currentDepth < limit
                 data = [list(x) for x in sample.iterkeys() if sample[x] == index]
@@ -205,7 +206,7 @@ class ELMTree(object):
         obj = None
         optParam = None
         for i in xrange(self.numThreshold):
-            print_time('th: %i' % i, self.fileName)
+            #print_time('th: %i' % i, self.fileName)
             param = self.generate_threshold(data)
             l_data, l_label, r_data, r_label = self.divide(data, param, data_pic)
             g = self.gini(l_label, r_label)
