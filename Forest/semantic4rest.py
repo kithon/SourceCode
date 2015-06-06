@@ -267,7 +267,7 @@ class ELMAETree(ELMTree):
         self.numThreshold = numThreshold
         self.np_rng = np.random.RandomState(seed)
         self.fileName = fileName
-        self.elm_hidden = numELM
+        self.elm_hidden = [numELM]
         self.elm_coef = None
         self.weight = weight
         self.dir_name = 'elmae/'
@@ -275,7 +275,7 @@ class ELMAETree(ELMTree):
     def function(self, element, param, picture):
         i, x, y = element
         selected_dim, theta, betas, biases = param
-        crop = self.picture[i].cropData(x, y, self.radius)
+        crop = picture[i].cropData(x, y, self.radius)
         for i, beta in enumerate(betas):
             bias = biases[i]
             crop = sigmoid(np.dot(crop, beta.T) + bias)
@@ -283,13 +283,13 @@ class ELMAETree(ELMTree):
         
     def generate_threshold(self, data):
         #print "Generate ", size, " divide functions"
-        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=self.visualize)
+        selmae = StackedELMAutoEncoder(n_hidden=self.elm_hidden, coef=self.elm_coef, visualize=False)
         sample = []
         num = min(len(data), (2*self.radius+1)*(2*self.radius+1))
         sample_index = random.sample(data, num)
         for temp in sample_index:
             i,x,y = temp
-            sample.append(self.picture[i].cropData(x, y, self.radius))
+            sample.append(self.train_pic[i].cropData(x, y, self.radius))
         betas, biases = selmae.fit(sample)
 
         numpy_data = np.array(selmae.extraction(sample))
@@ -538,10 +538,6 @@ def compute_weight(data_pic):
 ##########################################################
 
 def forest_test(forest, test_pic, fileName, dirName = ""):
-    # ---------- make directory ----------
-    if not os.path.isdir(dirName) and not dirName == "":
-        os.mkdir(dirName)
-    
     # ---------- get class distribution (pixel-wise) ----------
     hist = {}
     hist_list = []
@@ -757,7 +753,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName, 'elm/')
+        forest_test(forest, test_pic, fileName, 'elm_')
 
     if isELMAEF:
         print_time('ELM-AE forest', fileName)
@@ -773,7 +769,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName, 'elmae/')
+        forest_test(forest, test_pic, fileName, 'elmae_')
 
     if isSTF:
         print_time('Semantic Texton forest', fileName)
@@ -789,7 +785,7 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
             forest.append(tree)
 
         print_time('test', fileName)
-        forest_test(forest, test_pic, fileName, 'stf/')
+        forest_test(forest, test_pic, fileName, 'stf_')
 
 
     # ----- finish -----
