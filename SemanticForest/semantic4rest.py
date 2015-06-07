@@ -51,7 +51,7 @@ class ELMTree(object):
         while s_index < e_index and currentDepth < limit:
             print_time("depth:%d" % (currentDepth), self.fileName)
             currentDepth += 1
-            print_time("num of node:%d" % (s_index - e_index), self.fileName)
+            print_time("num of node:%d" % (e_index - s_index), self.fileName)
             for index in xrange(s_index, e_index):
                 forceTerminal = not currentDepth < limit
                 data = [list(x) for x in sample.iterkeys() if sample[x] == index]
@@ -695,7 +695,6 @@ def predict_superpixel(hist, picture, fileName):
         FN += one_FN
         one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
 
-    length = len(predict)
     Global = 1. * TP / length
     Accuracy = 1. * (TP + TN) / (TP + TN + FP + FN)
     Class_Avg = 1. * TP / (TP + FN)

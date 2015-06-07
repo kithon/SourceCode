@@ -695,7 +695,6 @@ def predict_superpixel(hist, picture, fileName):
         FN += one_FN
         one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
 
-    length = len(predict)
     Global = 1. * TP / length
     Accuracy = 1. * (TP + TN) / (TP + TN + FP + FN)
     Class_Avg = 1. * TP / (TP + FN)
