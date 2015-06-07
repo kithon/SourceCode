@@ -104,7 +104,8 @@ class ELMTree(object):
             if isTerminal:
                 # terminal node
                 hist = self.getHist(data, train_pic)
-                h5file.create_dataset(dir + '/hist', data = hist)
+                list_hist = [hist[i] for i in xrange(1,9)]
+                h5file.create_dataset(dir + '/hist' , data = list_hist)
             else:
                 # inner node
                 # ---------- param ----------
@@ -143,7 +144,8 @@ class ELMTree(object):
             isTerminal = h5file[dir + '/isTerminal'].value
             if isTerminal:
                 # terminal node
-                hist = h5file[dir + '/hist'].value
+                list_hist = h5file[dir + '/hist'].value
+                hist = {i:list_hist[i-1] for i in xrange(1,9)}
                 for d in data:
                     predict[tuple(d)] = hist
             else:
@@ -630,7 +632,7 @@ def forest_test(forest, test_pic, fileName, dirName = ""):
 
         
 def predict_pixel(hist, picture, fileName):
-    # ---------- pixel wise ----------
+    # ---------- pixel wise ----------q
     TP, TN, FP, FN = 0, 0, 0, 0
     one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
     predict = {}
@@ -725,7 +727,6 @@ def predict_superpixel(hist, picture, fileName):
         FN += one_FN
         one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
 
-    length = len(predict)
     Global = 1. * TP / length
     Accuracy = 1. * (TP + TN) / (TP + TN + FP + FN)
     Class_Avg = 1. * TP / (TP + FN)
