@@ -64,7 +64,7 @@ class ELMTree(object):
         node_length = 1
         currentDepth = 0
         predict_hist = {}
-        while s_index < e_index and (currentDepth < limit and not limit is None):
+        while s_index < e_index and (currentDepth < limit or limit is None):
             print_time("depth:%d" % (currentDepth), self.fileName)
             currentDepth += 1
             print_time("num of node:%d" % (e_index - s_index), self.fileName)
