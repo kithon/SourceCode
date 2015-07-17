@@ -78,7 +78,7 @@ def predict_draw(est, out_predict, picture, file_name):
 def list_dic2dic_dic(list_dic):
     dic_dic = {}
     for key in list_dic.iterkeys():
-        dic_dic[tuple(key)] = {i+1:dic_dic[tuple(key)][i] for i in xrange(0,8)}
+        dic_dic[tuple(key)] = {i+1:list_dic[tuple(key)][i] for i in xrange(0,8)}
     return dic_dic
 
 def predict_pixel(hist, picture, fileName):
