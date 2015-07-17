@@ -65,7 +65,7 @@ def RSS(data):
 
 def predict_draw(est, out_predict, picture, file_name):
     # predict and draw (CURRENTLY TEST DATA ONLY)            
-    predict, [Global, Accuracy, Class_Avg, Jaccard] = predict_pixel(list_dic2dic_dic(out_predict), picture, file_name)
+    predict, [Global, Accuracy, Class_Avg, Jaccard] = predict_pixel(out_predict, picture, file_name)
     print_time('GBDT%d_pixel: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (est, Global, Accuracy, Class_Avg, Jaccard), file_name)
     print_time('draw_pixel', file_name)    
     draw_pixel(predict, picture, file_name + 'tree%d_pixel' % est)
@@ -84,35 +84,19 @@ def list_dic2dic_dic(list_dic):
 def predict_pixel(hist, picture, fileName):
     # ---------- pixel wise ----------q
     TP, TN, FP, FN = 0, 0, 0, 0
-    one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
     predict = {}
-    for i,p in enumerate(picture):
-        width, height = p.getSize()
-        for j in xrange(width):
-            for k in xrange(height):
-                label = picture[i].getSignal(j,k)
-                # predict & count
-                if not hist.has_key((i,j,k)):
-                    print_time((i,j,k), fileName)
-                    continue
-                predict[i,j,k] = np.argmax(hist[i,j,k]) + 1
+    for key in hist.iterkeys():
+        i,j,k = key
+        label = picture[i].getSignal(j,k)
+        # predict & count
+        predict[i,j,k] = np.argmax(hist[i,j,k]) + 1
 #predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
-                if predict[i,j,k] == label:
-                    one_TP += 1
-                    one_TN += 7
-                else:
-                    one_FP += 7
-                    one_FN += 1
-        Global = 1. * one_TP / (width * height)
-        Accuracy = 1. * (one_TP + one_TN) / (one_TP + one_TN + one_FP + one_FN)
-        Class_Avg = 1. * one_TP / (one_TP + one_FN)
-        Jaccard = 1. * one_TP / (one_TP + one_FP + one_FN)
-        print_time('%dth picture: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (i, Global, Accuracy, Class_Avg, Jaccard), fileName)
-        TP += one_TP
-        TN += one_TN
-        FP += one_FP
-        FN += one_FN
-        one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
+        if predict[i,j,k] == label:
+            TP += 1
+            TN += 7
+        else:
+            FP += 7
+            FN += 1
 
     length = len(predict)
     Global = 1. * TP / length
@@ -485,8 +469,8 @@ class GradientBoostingClassifier(object):
         out_test = {}
         for i in xrange(len(self.test_pic)):
             w,h = self.test_pic[i].getSize()
-            for j in xrange(0, w, self.freq):
-                for k in xrange(0, h, self.freq):
+            for j in xrange(0, w):
+                for k in xrange(0, h):
                     out_test[i,j,k] = initial_output # initial output
                 
         # iterate self.n_estimators times
