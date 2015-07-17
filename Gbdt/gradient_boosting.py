@@ -492,7 +492,7 @@ class GradientBoostingClassifier(object):
             out_test = get_prob(out_test)
 
             # predict and draw (CURRENTLY TEST DATA ONLY)
-            predict_draw(est, out_test)
+            predict_draw(est, out_test, self.test_pic, self.file_name)
 
             # calcurate negative gradient
             grad_sample = neg_grad(out_sample, self.train_pic, self.learning_rate)
@@ -517,7 +517,7 @@ class GradientBoostingClassifier(object):
         out_test = get_prob(out_test)
             
         # predict and draw (CURRENTLY TEST DATA ONLY)            
-        predict_draw(self.n_estimators, out_test)
+        predict_draw(self.n_estimators, out_test, self.test_pic, self.file_name)
 
         # calcurate negative gradient
         grad_sample = neg_grad(out_sample, self.train_pic, self.learning_rate)
