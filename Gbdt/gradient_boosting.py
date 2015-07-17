@@ -42,7 +42,7 @@ def error_info(grad_dic):
     error_list = []
     for key in grad_dic.iterkeys():
         error_list.append(grad_dic[tuple(key)])
-    return max(error_list), min(error_list), np.mean(error_list), np.var(error_list)
+    return np.max(error_list), np.min(error_list), np.mean(error_list), np.var(error_list)
     
 """
 def softmax(data, e_wise=True):
@@ -64,17 +64,17 @@ def RSS(data):
 ##  Processing
 ##########################################################
 
-def predict_draw(est, out_predict, picture, file_name):
+def predict_draw(est, out_predict, picture, tree_type, file_name):
     # predict and draw (CURRENTLY TEST DATA ONLY)            
     predict, [Global, Accuracy, Class_Avg, Jaccard] = predict_pixel(list_dic2dic_dic(out_predict), picture, file_name)
-    print_time('GBDT%d_pixel: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (est, Global, Accuracy, Class_Avg, Jaccard), file_name)
+    print_time('GBDT_%s_%d_pixel: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (tree_type, est, Global, Accuracy, Class_Avg, Jaccard), file_name)
     print_time('draw_pixel', file_name)    
-    draw_pixel(predict, picture, file_name + 'tree%d_pixel' % est)
+    draw_pixel(predict, picture, 'tree_%s_%d_pixel' % (tree_type, est))
     # super-pixel
     predict, [Global, Accuracy, Class_Avg, Jaccard] = predict_superpixel(list_dic2dic_dic(out_predict), picture, file_name)
-    print_time('GBDT%d_super: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (est, Global, Accuracy, Class_Avg, Jaccard), file_name)
+    print_time('GBDT_%s_%d_super: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (tree_type, est, Global, Accuracy, Class_Avg, Jaccard), file_name)
     print_time('draw_super', file_name)    
-    draw_superpixel(predict, picture, file_name + 'tree%d_super' % est)
+    draw_superpixel(predict, picture, 'tree_%s_%d_super' % (tree_type, est))
     
 def list_dic2dic_dic(list_dic):
     dic_dic = {}
@@ -314,6 +314,7 @@ class RegressionTree(object):
         # check isTerminal
         if len(X_data) <= self.min_leaf_nodes or forceTerminal:
             # terminal
+            print_time("forcely1", self.file_name)
             return True, None
         
         # find optimized parameter
@@ -321,7 +322,7 @@ class RegressionTree(object):
         opt_param = None
         for i in xrange(self.max_features):
             #print_time('th: %i' % i, self.fileName)
-            param = self.generate_threshold(X_data)
+            param = self.generate_threshold(X_data, y_data)
             l_X, l_y, r_X, r_y = self.split_Xy(X_data, y_data, param, self.train_pic)
             rss = RSS(l_y) + RSS(r_y)
             if len(l_X) == 0 or len(r_X) == 0:
@@ -331,6 +332,7 @@ class RegressionTree(object):
                 opt_rss = rss
         if opt_param is None:
             # terminal
+            print_time("forcely2", self.file_name)
             return True, None
         # inner
         return False, opt_param
@@ -351,7 +353,7 @@ class RegressionTree(object):
             return picture[i].getData(x + x1, y + y1)[c1] - theta
 
     # ---------- Eigen method -----------
-    def generate_threshold(self, data):
+    def generate_threshold(self, data, signal):
         f = self.func[random.randint(0, len(self.func)-1)]
         theta = random.random()
         x1, y1, x2, y2 = [random.randint(-1 * self.radius, self.radius) for col in xrange(4)]
@@ -379,6 +381,7 @@ class ELMRegressionTree(RegressionTree):
         # add tree_args process
         if not tree_args is None:
             self.radius = tree_args['radius']
+            self.sample_size = tree_args['sample_size']
             self.elm_hidden = tree_args['elm_hidden']
                  
     # ---------- Eigen method -----------
@@ -391,15 +394,17 @@ class ELMRegressionTree(RegressionTree):
         return output - 0.5 # constant theta
         
     # ---------- Eigen method -----------
-    def generate_threshold(self, data):
+    def generate_threshold(self, data, signal):
         # crop data
         sample_input, label = [], []
-        num = min(len(data), self.sampleSize)
+        num = min(len(data), self.sample_size)
         sample_index = random.sample(data, num)
         for temp in sample_index:
             i,x,y = temp
             sample_input.append(self.train_pic[i].cropData(x, y, self.radius))
             label.append(self.train_pic[i].getSignal(x,y))
+            print_time(signal[data.index(temp)], self.file_name)
+            print_time(self.train_pic[i].getSignal(x,y), self.file_name)
 
         # label
         label_index = []
@@ -408,11 +413,16 @@ class ELMRegressionTree(RegressionTree):
             if numL < numR:
                 numL += l[1]
                 label_index.append(l[0])
+                print_time("right", self.file_name)
             else:
                 numR += l[1]
+                print_time("left", self.file_name)
 
         sample_signal = [1 if l in label_index else 0 for l in label]
             
+        # debug
+        print_time(collections.Counter(label), self.file_name)
+
         # train elm
         elm = BinaryELMClassifier(n_hidden=self.elm_hidden)
         weight, bias, beta = elm.fit(sample_input, sample_signal)
@@ -462,7 +472,7 @@ class GradientBoostingClassifier(object):
             for j in xrange(0, w, self.freq):
                 for k in xrange(0, h, self.freq):
                     # bootstrap
-                    if random.random() < self.sample and not self.train_pic[i].getSignal(j,k):
+                    if random.random() < self.sample and self.train_pic[i].getSignal(j,k):
                         sample[i,j,k] = 0
 
         # start with initial model
@@ -476,7 +486,7 @@ class GradientBoostingClassifier(object):
         # initial_output は一様分布にしてみたらどうか
 
         out_sample = {}
-        for key in out_sample.iterkeys():
+        for key in sample.iterkeys():
             out_sample[tuple(key)] = initial_output # initial output
 
         out_test = {}
@@ -489,21 +499,24 @@ class GradientBoostingClassifier(object):
         # iterate self.n_estimators times
         for est in xrange(self.n_estimators):
             # calcurate probability
+            print_time('len : %d' % (len(out_sample)), self.file_name)
             out_sample = get_prob(out_sample)
             out_test = get_prob(out_test)
 
             # predict and draw (CURRENTLY TEST DATA ONLY)
-            predict_draw(est, out_test, self.test_pic, self.file_name)
+            predict_draw(est, out_test, self.test_pic, self.tree_type, self.file_name)
 
             # calcurate negative gradient
             grad_sample = neg_grad(out_sample, self.train_pic)
-            print_time('len : %d' % (len(out_sample)), self.file_name)
-            print_time('len : %d' % (len(grad_sample)), self.file_name)
 
             # calcurate learning error (optional)
             max_error, min_error, mean_error, var_error = error_info(grad_sample)
-            print_time('GBDT%d_error_info: Max %f Min %f Mean %f var %f' % (est, max_error, min_error, mean_error, var_error), self.file_name)
+            print_time('GBDT%d_error_info: Max %f Min %f Mean %f Var %f' % (est, max_error, min_error, mean_error, var_error), self.file_name)
 
+            # initialize sample
+            for key in sample.iterkeys():
+                sample[tuple(key)] = 0
+            
             # fit a regression tree to negative gradient
             tree_obj = REG_TREES[self.tree_type]
             tree = tree_obj(self.file_name, self.train_pic, self.test_pic, self.max_depth, self.max_features, self.min_leaf_nodes, self.tree_args)
@@ -520,10 +533,10 @@ class GradientBoostingClassifier(object):
         out_test = get_prob(out_test)
             
         # predict and draw (CURRENTLY TEST DATA ONLY)            
-        predict_draw(self.n_estimators, out_test, self.test_pic, self.file_name)
+        predict_draw(self.n_estimators, out_test, self.test_pic, self.tree_type, self.file_name)
 
         # calcurate negative gradient
-        grad_sample = neg_grad(out_sample, self.train_pic, self.learning_rate)
+        grad_sample = neg_grad(out_sample, self.train_pic, self.tree_type, self.learning_rate)
         
         # calcurate learning error (optional)
         max_error, min_error, mean_error, var_error = error_info(grad_sample)
@@ -728,8 +741,9 @@ IS_TRAIN_DATA = False
 
 def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
               isREG, isELMREG,
-              dataPerTree, depthLimit, numThreshold, numTree, sampleSize,
-              numHidden,
+              n_estimator, max_depth, sample_pertree, sample_freq,
+              max_features, min_leaf_nodes, alpha, learning_rate, verpose,
+              reg_args, elmreg_args,
               n_superpixels, compactness,
               file_name):
     
@@ -741,31 +755,22 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
                                       shuffle=not unShuffle, name=file_name,
                                       n_superpixels=n_superpixels, compactness=compactness)
 
-    print_parameter([boxSize, dataSize, unShuffle, sampleFreq], file_name)
-    print_parameter([isREG, isELMREG], file_name)
-    print_parameter([dataPerTree, depthLimit, numThreshold, numTree], file_name)
-    print_parameter([numHidden], file_name)
     print_time('eTRIMS: radius=%d, depth_limit=%s, data_size=%d, num_func=%d'
-               % (radius, str(depthLimit), dataSize, numThreshold), file_name)
+               % (radius, str(max_depth), dataSize, max_features), file_name)
 
     # compute label weight
     #weight = compute_weight(train_pic)
 
     if isREG:
         print_time('GBDT Regression', file_name)
-        learning_rate = 0.9
-        n_estimators = 10
-        max_depth = 10
-        sample = 0.25
-        freq = 5
-        max_features = 10
-        min_leaf_nodes = None
-        alpha = 0.8
-        verpose = None
-        tree_type = 'reg'
-        tree_args = {'radius':15}
-        gbdt = GradientBoostingClassifier(file_name, learning_rate, n_estimators, max_depth, sample, freq,
-                                          max_features, min_leaf_nodes, alpha, verpose, tree_type, tree_args)
+        gbdt = GradientBoostingClassifier(file_name, learning_rate, n_estimator, max_depth, sample_pertree, sample_freq,
+                                          max_features, min_leaf_nodes, alpha, verpose, 'reg', reg_args)
+        gbdt.fit_predict(train_pic, test_pic)
+
+    if isELMREG:
+        print_time('GBDT ELMRegression', file_name)
+        gbdt = GradientBoostingClassifier(file_name, learning_rate, n_estimator, max_depth, sample_pertree, sample_freq,
+                                          max_features, min_leaf_nodes, alpha, verpose, 'elm', elmreg_args)
         gbdt.fit_predict(train_pic, test_pic)
 
     # ----- finish -----
