@@ -423,7 +423,7 @@ class ELMRegressionTree(RegressionTree):
 
 class GradientBoostingClassifier(object):
     def __init__(self, file_name, learning_rate, n_estimators,
-                 max_depth, sample, max_features, min_leaf_nodes,
+                 max_depth, sample, freq, max_features, min_leaf_nodes,
                  alpha=0.9, verpose=0, 
                  tree_type='reg', tree_args={}):
         # loss
@@ -439,6 +439,7 @@ class GradientBoostingClassifier(object):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.sample = sample
+        self.freq = freq
         self.max_features = max_features
         self.min_leaf_nodes = min_leaf_nodes
         self.alpha = alpha
@@ -457,8 +458,8 @@ class GradientBoostingClassifier(object):
                                
         for i in xrange(len(self.train_pic)):
             w,h = self.train_pic[i].getSize()
-            for j in xrange(0, w, self.sample):
-                for k in xrange(0, h, self.sample):
+            for j in xrange(0, w, self.freq):
+                for k in xrange(0, h, self.freq):
                     # bootstrap
                     if random.random() < self.sample and not self.train_pic[i].getSignal(j,k):
                         sample[i,j,k] = 0
@@ -753,14 +754,15 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
         n_estimators = 10
         max_depth = 10
         sample = 0.25
+        freq = 5
         max_features = 10
         min_leaf_nodes = None
         alpha = 0.8
         verpose = None
         tree_type = 'reg'
         tree_args = {'radius':15}
-        GradientBoostingClassifier(file_name, learning_rate, n_estimators, max_depth, sample, max_features,
-                                   min_leaf_nodes, alpha, verpose, tree_type, tree_args)
+        GradientBoostingClassifier(file_name, learning_rate, n_estimators, max_depth, sample, freq,
+                                   max_features, min_leaf_nodes, alpha, verpose, tree_type, tree_args)
 
     # ----- finish -----
     print_time('eTRIMS: finish', file_name)
