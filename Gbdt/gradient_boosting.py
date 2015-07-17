@@ -535,7 +535,7 @@ class GradientBoostingClassifier(object):
 ##########################################################
 
 class Pic(object):
-    __slots__ = ['data', 'signal', 'spixel', 'palette'
+    __slots__ = ['data', 'signal', 'spixel', 'palette',
                  'slength', 'scenter', 'sdic', 'w', 'h']
     def __init__(self, data, signal, spixel):
         self.w, self.h = data.size
