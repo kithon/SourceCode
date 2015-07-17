@@ -761,8 +761,9 @@ def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
         verpose = None
         tree_type = 'reg'
         tree_args = {'radius':15}
-        GradientBoostingClassifier(file_name, learning_rate, n_estimators, max_depth, sample, freq,
-                                   max_features, min_leaf_nodes, alpha, verpose, tree_type, tree_args)
+        gbdt = GradientBoostingClassifier(file_name, learning_rate, n_estimators, max_depth, sample, freq,
+                                          max_features, min_leaf_nodes, alpha, verpose, tree_type, tree_args)
+        gbdt.fit_predict(train_pic, test_pic)
 
     # ----- finish -----
     print_time('eTRIMS: finish', file_name)
