@@ -95,7 +95,8 @@ def predict_pixel(hist, picture, fileName):
                 if not hist.has_key((i,j,k)):
                     print_time((i,j,k), fileName)
                     continue
-                predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
+                predict[i,j,k] = np.argmax(hist[i,j,k]) + 1
+#predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
                 if predict[i,j,k] == label:
                     one_TP += 1
                     one_TN += 7
