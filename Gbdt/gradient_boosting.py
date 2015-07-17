@@ -30,12 +30,13 @@ def get_prob(input_dic, t=1.0):
 
 def neg_grad(input_dic, picture):
     ident = np.identity(8)
+    neg_dic = {}
     for key in input_dic.iterkeys():
         i,x,y = key
         signal = ident[picture[i].getSignal(x,y) - 1]
         array = signal - np.array(input_dic[tuple(key)])
-        input_dic[tuple(key)] = array.tolist()
-    return input_dic
+        neg_dic[tuple(key)] = array.tolist()
+    return neg_dic
 
 def error_info(grad_dic):
     error_list = []
@@ -496,7 +497,7 @@ class GradientBoostingClassifier(object):
 
             # calcurate negative gradient
             grad_sample = neg_grad(out_sample, self.train_pic)
-            print_time('%d' % (len(grad_sample)), self.file_name)
+            print_time('len : %d' % (len(grad_sample)), self.file_name)
 
             # calcurate learning error (optional)
             max_error, min_error, mean_error, var_error = error_info(grad_sample)
