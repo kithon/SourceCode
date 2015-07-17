@@ -481,8 +481,8 @@ class GradientBoostingClassifier(object):
         out_test = {}
         for i in xrange(len(self.test_pic)):
             w,h = self.test_pic[i].getSize()
-            for j in xrange(0, w, self.sample):
-                for k in xrange(0, h, self.sample):
+            for j in xrange(0, w, self.freq):
+                for k in xrange(0, h, self.freq):
                     out_test[i,j,k] = initial_output # initial output
                 
         # iterate self.n_estimators times
