@@ -92,7 +92,9 @@ def predict_pixel(hist, picture, fileName):
             for k in xrange(height):
                 label = picture[i].getSignal(j,k)
                 # predict & count
-                print_time(len(hist), fileName)
+                if not hist.has_key((i,j,k)):
+                    print_time((i,j,k), fileName)
+                    continue
                 predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
                 if predict[i,j,k] == label:
                     one_TP += 1
