@@ -84,19 +84,31 @@ def list_dic2dic_dic(list_dic):
 def predict_pixel(hist, picture, fileName):
     # ---------- pixel wise ----------q
     TP, TN, FP, FN = 0, 0, 0, 0
+    one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
     predict = {}
-    for key in hist.iterkeys():
-        i,j,k = key
-        label = picture[i].getSignal(j,k)
-        # predict & count
-        predict[i,j,k] = np.argmax(hist[i,j,k]) + 1
-#predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
-        if predict[i,j,k] == label:
-            TP += 1
-            TN += 7
-        else:
-            FP += 7
-            FN += 1
+    for i,p in enumerate(picture):
+        width, height = p.getSize()
+        for j in xrange(width):
+            for k in xrange(height):
+                label = picture[i].getSignal(j,k)
+                # predict & count
+                predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
+                if predict[i,j,k] == label:
+                    one_TP += 1
+                    one_TN += 7
+                else:
+                    one_FP += 7
+                    one_FN += 1
+        Global = 1. * one_TP / (width * height)
+        Accuracy = 1. * (one_TP + one_TN) / (one_TP + one_TN + one_FP + one_FN)
+        Class_Avg = 1. * one_TP / (one_TP + one_FN)
+        Jaccard = 1. * one_TP / (one_TP + one_FP + one_FN)
+        print_time('%dth picture: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (i, Global, Accuracy, Class_Avg, Jaccard), fileName)
+        TP += one_TP
+        TN += one_TN
+        FP += one_FP
+        FN += one_FN
+        one_TP, one_TN, one_FP, one_FN = 0, 0, 0, 0
 
     length = len(predict)
     Global = 1. * TP / length
