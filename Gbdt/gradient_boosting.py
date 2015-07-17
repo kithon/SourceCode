@@ -496,6 +496,7 @@ class GradientBoostingClassifier(object):
 
             # calcurate negative gradient
             grad_sample = neg_grad(out_sample, self.train_pic)
+            print_time('%d' % (len(grad_sample)), self.file_name)
 
             # calcurate learning error (optional)
             max_error, min_error, mean_error, var_error = error_info(grad_sample)
