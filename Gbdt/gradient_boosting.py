@@ -28,12 +28,12 @@ def get_prob(input_dic, t=1.0):
         input_dic[tuple(key)] = (softmax(input_dic[tuple(key)], t=t)).tolist()
     return input_dic
 
-def neg_grad(input_dic, picture, lr_rate):
+def neg_grad(input_dic, picture):
     ident = np.identity(8)
     for key in input_dic.iterkeys():
         i,x,y = key
         signal = ident[picture[i].getSignal(x,y) - 1]
-        array = signal - lr_rate * np.array(input_dic[tuple(key)])
+        array = signal - np.array(input_dic[tuple(key)])
         input_dic[tuple(key)] = array.tolist()
     return input_dic
 
@@ -92,7 +92,7 @@ def predict_pixel(hist, picture, fileName):
             for k in xrange(height):
                 label = picture[i].getSignal(j,k)
                 # predict & count
-                print_time(hist[i,j,k], fileName)
+                print_time(len(hist.iterkeys()), fileName)
                 predict[i,j,k] = max(hist[i,j,k].iteritems(), key=operator.itemgetter(1))[0]
                 if predict[i,j,k] == label:
                     one_TP += 1
@@ -496,7 +496,7 @@ class GradientBoostingClassifier(object):
             predict_draw(est, out_test, self.test_pic, self.file_name)
 
             # calcurate negative gradient
-            grad_sample = neg_grad(out_sample, self.train_pic, self.learning_rate)
+            grad_sample = neg_grad(out_sample, self.train_pic)
 
             # calcurate learning error (optional)
             max_error, min_error, mean_error, var_error = error_info(grad_sample)
@@ -509,9 +509,9 @@ class GradientBoostingClassifier(object):
             
             # update output (out_sample + out_X and out_test + out_X2)
             for key in out_sample.iterkeys():
-                out_sample[tuple(key)] = [out_sample[tuple(key)][i] + out_X[tuple(key)][i] for i in xrange(0, 8)]
+                out_sample[tuple(key)] = [out_sample[tuple(key)][i] + self.learning_rate * out_X[tuple(key)][i] for i in xrange(0, 8)]
             for key in out_test.iterkeys():
-                out_test[tuple(key)] = [out_test[tuple(key)][i] + out_X2[tuple(key)][i] for i in xrange(0, 8)]
+                out_test[tuple(key)] = [out_test[tuple(key)][i] + self.learning_rate * out_X2[tuple(key)][i] for i in xrange(0, 8)]
 
         # calcurate probability
         out_sample = get_prob(out_sample)
