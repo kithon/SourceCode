@@ -3,24 +3,31 @@ import gradient_boosting
 
 # config data
 boxSize = 15# 15
-
-dataSize = 60
+dataSize = 6
 unShuffle = False
-sampleFreq = 5 # 1
 
 # config Tree Type
-isREG = True
-isELMREG = False
+isREG = False
+isELMREG = True
 
 # config forest
-dataPerTree = 0.25
-depthLimit = None
-numThreshold = 1 # 400
-numTree = 5
-sampleSize = boxSize * boxSize * 3
+n_estimator = 10
+max_depth = 10
+sample_pertree = 0.75
+sample_freq = 5
+max_features = 10
+min_leaf_nodes = None
+alpha = 0.8
+learning_rate = 0.9
+verpose = None
 
-# config ELMF
-numHidden = boxSize * boxSize * 3 * 2
+# config REG
+reg_args = {'radius': (boxSize - 1) / 2}
+
+# config ELMREG
+reg_args = {'radius': (boxSize - 1) / 2,
+            'sample_size': boxSize * boxSize * 3,
+            'elm_hidden': boxSize * boxSize * 3 * 2}
 
 # config slic
 n_superpixels = 500
@@ -30,9 +37,10 @@ compactness = 10
 fileName = "g_test.log"
 
 if __name__ == '__main__':
-    gradient_boosting.do_forest(boxSize, dataSize, unShuffle, sampleFreq,
+    gradient_boosting.do_forest(boxSize, dataSize, unShuffle, 
                                 isREG, isELMREG,
-                                dataPerTree, depthLimit, numThreshold, numTree, sampleSize,
-                                numHidden,
+                                n_estimator, max_depth, sample_pertree, sample_freq,
+                                max_features, min_leaf_nodes, alpha, learning_rate, verpose,
+                                reg_args, elmreg_args,
                                 n_superpixels, compactness,
-                          fileName)
+                                file_name):

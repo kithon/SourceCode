@@ -739,7 +739,7 @@ def compute_weight(data_pic):
 REG_TREES = {'reg': RegressionTree, 'elm': ELMRegressionTree} 
 IS_TRAIN_DATA = False
 
-def do_forest(boxSize, dataSize, unShuffle, sampleFreq,
+def do_forest(boxSize, dataSize, unShuffle,
               isREG, isELMREG,
               n_estimator, max_depth, sample_pertree, sample_freq,
               max_features, min_leaf_nodes, alpha, learning_rate, verpose,
