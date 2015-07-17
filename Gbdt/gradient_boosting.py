@@ -66,7 +66,7 @@ def RSS(data):
 
 def predict_draw(est, out_predict, picture, file_name):
     # predict and draw (CURRENTLY TEST DATA ONLY)            
-    predict, [Global, Accuracy, Class_Avg, Jaccard] = predict_pixel(out_predict, picture, file_name)
+    predict, [Global, Accuracy, Class_Avg, Jaccard] = predict_pixel(list_dic2dic_dic(out_predict), picture, file_name)
     print_time('GBDT%d_pixel: Global %f Accuracy %f Class_Avg %f Jaccard %f' % (est, Global, Accuracy, Class_Avg, Jaccard), file_name)
     print_time('draw_pixel', file_name)    
     draw_pixel(predict, picture, file_name + 'tree%d_pixel' % est)
