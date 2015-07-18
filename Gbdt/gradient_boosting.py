@@ -403,8 +403,8 @@ class ELMRegressionTree(RegressionTree):
             i,x,y = temp
             sample_input.append(self.train_pic[i].cropData(x, y, self.radius))
             label.append(self.train_pic[i].getSignal(x,y))
-            print_time(signal[data.index(temp)], self.file_name)
-            print_time(self.train_pic[i].getSignal(x,y), self.file_name)
+            #print_time(signal[data.index(temp)], self.file_name)
+            #print_time(self.train_pic[i].getSignal(x,y), self.file_name)
 
         # label
         label_index = []
@@ -413,10 +413,10 @@ class ELMRegressionTree(RegressionTree):
             if numL < numR:
                 numL += l[1]
                 label_index.append(l[0])
-                print_time("right", self.file_name)
+                #print_time("right", self.file_name)
             else:
                 numR += l[1]
-                print_time("left", self.file_name)
+                #print_time("left", self.file_name)
 
         sample_signal = [1 if l in label_index else 0 for l in label]
             
@@ -536,7 +536,7 @@ class GradientBoostingClassifier(object):
         predict_draw(self.n_estimators, out_test, self.test_pic, self.tree_type, self.file_name)
 
         # calcurate negative gradient
-        grad_sample = neg_grad(out_sample, self.train_pic, self.tree_type, self.learning_rate)
+        grad_sample = neg_grad(out_sample, self.train_pic)
         
         # calcurate learning error (optional)
         max_error, min_error, mean_error, var_error = error_info(grad_sample)

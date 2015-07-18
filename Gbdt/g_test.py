@@ -7,7 +7,7 @@ dataSize = 6
 unShuffle = False
 
 # config Tree Type
-isREG = False
+isREG = True
 isELMREG = True
 
 # config forest
@@ -25,8 +25,8 @@ verpose = None
 reg_args = {'radius': (boxSize - 1) / 2}
 
 # config ELMREG
-reg_args = {'radius': (boxSize - 1) / 2,
-            'sample_size': boxSize * boxSize * 3,
+elmreg_args = {'radius': (boxSize - 1) / 2,
+            'sample_size': boxSize * boxSize,
             'elm_hidden': boxSize * boxSize * 3 * 2}
 
 # config slic
@@ -34,7 +34,7 @@ n_superpixels = 500
 compactness = 10
 
 # config fileName
-fileName = "g_test.log"
+file_name = "g_test.log"
 
 if __name__ == '__main__':
     gradient_boosting.do_forest(boxSize, dataSize, unShuffle, 
@@ -43,4 +43,4 @@ if __name__ == '__main__':
                                 max_features, min_leaf_nodes, alpha, learning_rate, verpose,
                                 reg_args, elmreg_args,
                                 n_superpixels, compactness,
-                                file_name):
+                                file_name)
