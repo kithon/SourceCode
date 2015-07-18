@@ -216,7 +216,7 @@ class RegressionTree(object):
             self.func = ['add', 'sub', 'abs', 'uni']
             self.radius = tree_args['radius']
         
-    def fit_predict(self, X, y):
+    def fit_predict(self, X, y, weight=None):
         # fit regression tree to X and y
         # predict from test_pic
         # return Output of X and Predict
@@ -247,6 +247,8 @@ class RegressionTree(object):
                 if isTerminal:
                     # get histgram with y_data
                     hist = np.mean(y_data, axis=0)
+                    if not weight is None:
+                        hist *= np.array(weight)
                     for d in X_data:
                         out_X[tuple(d)] = hist
                     for d in X2_data:
@@ -456,6 +458,7 @@ class GradientBoostingClassifier(object):
         self.alpha = alpha
         self.tree_type = tree_type
         self.tree_args = tree_args
+
         
     def fit_predict(self, train_pic, test_pic):
         # label-weight 問題をどう処理するか(線形の逆数だとうまくいかないと思う)
@@ -474,6 +477,8 @@ class GradientBoostingClassifier(object):
                     # bootstrap
                     if random.random() < self.sample and self.train_pic[i].getSignal(j,k):
                         sample[i,j,k] = 0
+
+        weight = compute_weight(self.train_pic, sample)
 
         # start with initial model
         label_list = []
@@ -520,7 +525,7 @@ class GradientBoostingClassifier(object):
             # fit a regression tree to negative gradient
             tree_obj = REG_TREES[self.tree_type]
             tree = tree_obj(self.file_name, self.train_pic, self.test_pic, self.max_depth, self.max_features, self.min_leaf_nodes, self.tree_args)
-            out_X, out_X2 = tree.fit_predict(sample, grad_sample)
+            out_X, out_X2 = tree.fit_predict(sample, grad_sample, weight)
             
             # update output (out_sample + out_X and out_test + out_X2)
             for key in out_sample.iterkeys():
@@ -719,14 +724,20 @@ def load_etrims(radius, size, shuffle, name, n_superpixels, compactness):
     print_time("eTRIMS: train=%d test=%d" % (len(train_set), len(test_set)), name)
     return train_set, test_set
 
-def compute_weight(data_pic):
+def compute_weight(data_pic, data=None):
     # compute label weight from train picture
     label = []
-    for i,p in enumerate(data_pic):
-        w,h = p.getSize()
-        for x in xrange(w):
-            for y in xrange(h):
-                label.append(data_pic[i].getSignal(x,y))
+    if data is None:
+        for i,p in enumerate(data_pic):
+            w,h = p.getSize()
+            for x in xrange(w):
+                for y in xrange(h):
+                    label.append(data_pic[i].getSignal(x,y))
+    else:
+        for key in data.iterkeys():
+            i,x,y = key
+            label.append(data_pic[i].getSignal(x,y))
+
     label_weight = {}
     for l in collections.Counter(label).most_common():
         label_weight[l[0]] = 1. / l[1]
