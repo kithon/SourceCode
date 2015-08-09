@@ -385,8 +385,29 @@ class ELMRegressionTree(RegressionTree):
             self.radius = tree_args['radius']
             self.sample_size = tree_args['sample_size']
             self.elm_hidden = tree_args['elm_hidden']
-                 
-    # ---------- Eigen method -----------
+
+    # original method
+    def split(self, data, param, data_pic):
+        lr_data = [[], []]
+        lr_list = self.split_function_batch(data, param, data_pic)
+        #lr_list = map(lambda element:self.split_function(element, param, data_pic) > 0, data)
+        for i, lr in enumerate(lr_list):
+            lr_data[lr].append(data[i])
+
+        l_data, r_data = lr_data
+        return l_data, r_data
+    
+    def split_function_batch(self, data, param, picture):
+        lr_list = []
+        batch_size = 100
+        weight, bias, beta = param
+        for batch_data in [data[col:col+batch_size] for col in range(0, len(data), batch_size)]:
+            batch_input = [picture[i].cropData(x, y, self.radius) for (i,x,y) in batch_data]
+            hidden = sigmoid(np.dot(weight.T, batch_input) + bias)
+            output = np.dot(beta.T, hidden) - 0.5 # sigmoid(np.dot(hidden, beta))
+            lr_list += map(lambda input: input> 0, output)
+        return lr_list
+       
     def split_function(self, element, param, picture):
         i,x,y = element
         weight, bias, beta = param
@@ -395,7 +416,6 @@ class ELMRegressionTree(RegressionTree):
         output = np.dot(beta.T, hidden) # sigmoid(np.dot(hidden, beta))
         return output - 0.5 # constant theta
         
-    # ---------- Eigen method -----------
     def generate_threshold(self, data, signal):
         # crop data
         sample_input, label = [], []
@@ -786,3 +806,5 @@ def do_forest(boxSize, dataSize, unShuffle,
 
     # ----- finish -----
     print_time('eTRIMS: finish', file_name)
+
+    
