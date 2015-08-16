@@ -3,7 +3,7 @@ import test_forest
 
 # config Tree Type
 isREG = True
-isELMREG = False
+isELMREG = True
 
 # config forest
 n_estimator = 2
